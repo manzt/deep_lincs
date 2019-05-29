@@ -16,15 +16,16 @@ ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
 
 # FILE name and path
-DATA_NAME = "GSE92742_Broad_LINCS_Level4_ZSPCINF_mlr12k_n1319138x12328.gctx"
-DATA_PATH = os.path.join("data", DATA_NAME)
+file_name = "GSE92742_Broad_LINCS_Level4_ZSPCINF_mlr12k_n1319138x12328.gctx"
+data_dir = os.environ['DATA_DIR']
+file_path = os.path.join(data_dir, file_name)
 
 
 def compute_summary_stats(file_path):
     with h5py.File(file_path) as f:
         data_dset = f[DATA_NODE]
-        da = da.from_array(data_dset)[:, :N_LANDMARK_GENES]
-        ddf = dd.from_dask_array(da)
+        arr = da.from_array(data_dset)[:, :N_LANDMARK_GENES]
+        ddf = dd.from_dask_array(arr)
 
         landmark_gene_labels = f[RID_NODE][:N_LANDMARK_GENES].astype(str)
         ddf.columns = landmark_gene_labels
@@ -34,5 +35,5 @@ def compute_summary_stats(file_path):
 
 
 if __name__ == "__main__":
-    stats = compute_summary_stats(DATA_PATH)
+    stats = compute_summary_stats(file_path)
     stats.to_csv("summary_stats.tsv", sep="\t")
