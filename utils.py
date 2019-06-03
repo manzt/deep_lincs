@@ -17,9 +17,9 @@ ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
 
 
-def load_data(data_path, col_meta_path, pert_types, only_landmark=True):
+def load_data(data_path, col_meta_path, pert_types, cell_ids, only_landmark=True):
     ridx_max = N_LANDMARK_GENES if only_landmark else None  # only select landmark genes
-    desired_sample_ids = get_desired_ids(col_meta_path, pert_types)
+    subset_metadata = subset_samples(col_meta_path, pert_types, cell_ids)
     with h5py.File(data_path, "r") as gctx_file:
         # read in metadata columns
         all_sample_ids = gctx_file[CID_NODE][:].astype(str)
@@ -32,16 +32,22 @@ def load_data(data_path, col_meta_path, pert_types, only_landmark=True):
         data = da.from_array(data_dset)
 
         # create mask for desired ids
-        mask = np.isin(all_sample_ids, desired_sample_ids)
+        mask = np.isin(all_sample_ids, subset_metadata.inst_id.values.astype(str))
         data = data[mask, :ridx_max].compute()
 
-    return all_sample_ids[mask], gene_labels, data
+    col_meta = pd.DataFrame({"inst_id": all_sample_ids[mask]}).join(
+        subset_metadata.set_index("inst_id"), on="inst_id"
+    )
+    return col_meta, gene_labels, data
 
 
-def get_desired_ids(col_meta_path, pert_types):
+def subset_samples(col_meta_path, pert_types, cell_ids):
     metadata = pd.read_csv(col_meta_path, sep="\t", low_memory=False)
-    desired_sample_ids = metadata.inst_id[metadata.pert_type.isin(pert_types)]
-    return desired_sample_ids.values.astype(str)
+    # filter metadata by pert types and cell ids
+    filtered_metadata = metadata[
+        metadata.pert_type.isin(pert_types) & metadata.cell_id.isin(cell_ids)
+    ]
+    return filtered_metadata
 
 
 def split_data(X, y, p=0.20):
