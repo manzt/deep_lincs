@@ -17,7 +17,7 @@ ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
 
 
-def load_data(data_path, col_meta_path, pert_types, cell_ids, only_landmark=True):
+def load_data(data_path, col_meta_path, pert_types, cell_ids=None, only_landmark=True):
     ridx_max = N_LANDMARK_GENES if only_landmark else None  # only select landmark genes
     subset_metadata = subset_samples(col_meta_path, pert_types, cell_ids)
     with h5py.File(data_path, "r") as gctx_file:
@@ -44,9 +44,13 @@ def load_data(data_path, col_meta_path, pert_types, cell_ids, only_landmark=True
 def subset_samples(col_meta_path, pert_types, cell_ids):
     metadata = pd.read_csv(col_meta_path, sep="\t", low_memory=False)
     # filter metadata by pert types and cell ids
-    filtered_metadata = metadata[
-        metadata.pert_type.isin(pert_types) & metadata.cell_id.isin(cell_ids)
-    ]
+    
+    if cell_ids is None:
+        filtered_metadata = metadata[metadata.pert_type.isin(pert_types)]
+    else:
+        filtered_metadata = metadata[
+            metadata.pert_type.isin(pert_types) & metadata.cell_id.isin(cell_ids)
+        ]
     return filtered_metadata
 
 
