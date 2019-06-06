@@ -54,9 +54,9 @@ def subset_samples(col_meta_path, pert_types, cell_ids):
     return filtered_metadata
 
 
-def split_data(X, y, p=0.20):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=p)
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=p)
+def split_data(X, y, p1=0.2, p2=0.2):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=p1)
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=p2)
     return (X_train, y_train), (X_val, y_val), (X_test, y_test)
 
 
@@ -71,3 +71,16 @@ def compute_summary_stats(data_path):
         df = ddf.describe().compute()
 
     return df
+
+
+def clip_and_normalize(data, n_sigma = 2.0):
+    data_mean = data.mean()
+    data_std  = data.std()
+    
+    upper = data_mean + n_sigma * data_std
+    lower = data_mean - n_sigma * data_std
+
+    clipped = np.where(data > upper, upper, data)
+    clipped = np.where(data < lower, lower, clipped)
+
+    return clipped 
