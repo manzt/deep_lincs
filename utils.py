@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import dask.array as da
 import dask.dataframe as dd
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 import h5py
 
 # L1000 Data
@@ -84,3 +86,43 @@ def clip_and_normalize(data, n_sigma = 2.0):
     clipped = np.where(data < lower, lower, clipped)
 
     return clipped 
+
+
+def plot_embedding2D(embedding, meta_labels, alpha=0.5):
+    colors = [
+        'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
+        'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan'
+    ]
+    labels = np.unique(meta_labels)
+    cdict = dict(zip(labels, colors[:len(labels)]))
+
+    fig, ax = plt.subplots()
+    for lab in labels:
+        idx = np.where(meta_labels == lab)
+        ax.scatter(embedding[idx,0], embedding[idx,1], label=lab, alpha=alpha)
+    ax.legend()
+    plt.show()
+    
+    
+def plot_embedding3D(embedding, meta_labels, alpha=0.5):
+    colors = [
+        'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
+        'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan'
+    ]
+    labels = np.unique(meta_labels)
+    cdict = dict(zip(labels, colors[:len(labels)]))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    for lab in labels:
+        idx = np.where(meta_labels == lab)
+        ax.scatter(
+            embedding[idx,0], 
+            embedding[idx,1],
+            embedding[idx,2], 
+            label=lab, 
+            alpha=alpha
+        )
+    ax.legend()
+    plt.show()
