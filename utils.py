@@ -1,4 +1,5 @@
 from sklearn.model_selection import train_test_split
+import tensorflow as tf
 import numpy as np
 import pandas as pd
 import dask.array as da
@@ -46,7 +47,7 @@ def load_data(data_path, col_meta_path, pert_types, cell_ids=None, only_landmark
 def subset_samples(col_meta_path, pert_types, cell_ids):
     metadata = pd.read_csv(col_meta_path, sep="\t", low_memory=False)
     # filter metadata by pert types and cell ids
-    
+
     if cell_ids is None:
         filtered_metadata = metadata[metadata.pert_type.isin(pert_types)]
     else:
@@ -62,6 +63,19 @@ def split_data(X, y, p1=0.2, p2=0.2):
     return (X_train, y_train), (X_val, y_val), (X_test, y_test)
 
 
+def create_tf_dataset(X, y, shuffle=True, repeated=True, batch_size=32):
+    """Creates a tensorflow Dataset to be ingested by Keras."""
+    dataset = tf.data.Dataset.from_tensor_slices((X, y))
+    if repeated:
+        dataset = dataset.repeat()
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size=X.shape[0])
+    dataset = dataset.batch(batch_size)
+    # `prefetch` lets the dataset fetch batches, in the background while the model is training.
+    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+    return dataset
+
+
 def compute_summary_stats(data_path):
     with h5py.File(data_path) as f:
         data_dset = f[DATA_NODE]
@@ -75,54 +89,70 @@ def compute_summary_stats(data_path):
     return df
 
 
-def clip_and_normalize(data, n_sigma = 2.0):
+def clip_and_normalize(data, n_sigma=2.0):
     data_mean = data.mean()
-    data_std  = data.std()
-    
+    data_std = data.std()
+
     upper = data_mean + n_sigma * data_std
     lower = data_mean - n_sigma * data_std
 
     clipped = np.where(data > upper, upper, data)
     clipped = np.where(data < lower, lower, clipped)
 
-    return clipped 
+    return clipped
 
 
 def plot_embedding2D(embedding, meta_labels, alpha=0.5):
     colors = [
-        'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
-        'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan'
+        "tab:blue",
+        "tab:orange",
+        "tab:green",
+        "tab:red",
+        "tab:purple",
+        "tab:brown",
+        "tab:pink",
+        "tab:gray",
+        "tab:olive",
+        "tab:cyan",
     ]
     labels = np.unique(meta_labels)
-    cdict = dict(zip(labels, colors[:len(labels)]))
+    cdict = dict(zip(labels, colors[: len(labels)]))
 
     fig, ax = plt.subplots()
     for lab in labels:
         idx = np.where(meta_labels == lab)
-        ax.scatter(embedding[idx,0], embedding[idx,1], label=lab, alpha=alpha)
+        ax.scatter(embedding[idx, 0], embedding[idx, 1], label=lab, alpha=alpha)
     ax.legend()
     plt.show()
-    
-    
+
+
 def plot_embedding3D(embedding, meta_labels, alpha=0.5):
     colors = [
-        'tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
-        'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan'
+        "tab:blue",
+        "tab:orange",
+        "tab:green",
+        "tab:red",
+        "tab:purple",
+        "tab:brown",
+        "tab:pink",
+        "tab:gray",
+        "tab:olive",
+        "tab:cyan",
     ]
     labels = np.unique(meta_labels)
-    cdict = dict(zip(labels, colors[:len(labels)]))
+    cdict = dict(zip(labels, colors[: len(labels)]))
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    
+    ax = fig.add_subplot(111, projection="3d")
+
     for lab in labels:
         idx = np.where(meta_labels == lab)
         ax.scatter(
-            embedding[idx,0], 
-            embedding[idx,1],
-            embedding[idx,2], 
-            label=lab, 
-            alpha=alpha
+            embedding[idx, 0],
+            embedding[idx, 1],
+            embedding[idx, 2],
+            label=lab,
+            alpha=alpha,
         )
     ax.legend()
     plt.show()
