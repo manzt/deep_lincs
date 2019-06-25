@@ -40,8 +40,10 @@ def load_data(data_path, col_meta_path, pert_types, cell_ids=None, only_landmark
         data["inst_id"] = all_sample_ids[mask]
         data = data.set_index("inst_id")
 
-    col_meta = pd.DataFrame({"inst_id": all_sample_ids[mask]}).join(
-        subset_metadata.set_index("inst_id"), on="inst_id"
+    col_meta = (
+        pd.DataFrame({"inst_id": all_sample_ids[mask]})
+        .join(subset_metadata.set_index("inst_id"), on="inst_id")
+        .set_index("inst_id")
     )
     return col_meta, gene_labels, data
 
