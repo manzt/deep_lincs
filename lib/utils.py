@@ -20,45 +20,70 @@ ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
 
 
-def load_data(data_path, col_meta_path, pert_types, cell_ids=None, only_landmark=True):
+def load_data(data_path, col_meta_path, pert_types=None, cell_ids=None, only_landmark=True):
+    """Loads Level3 or Level4 data (gtcx) and subsets by cell_id and pert_type.
+    
+     GTCX (HFD5):                             Dataframe:
+           all genes              
+         -------------                        landmark genes
+        |             |                          -------- 
+        |             |                         |        |
+        |             | all samples    --->     |        |  selected samples
+        |             |                         |        |
+        |             |                          --------
+         -------------                    
+    
+    Inputs:
+        - data_path (str): full path to gctx file you want to parse.
+        - col_meta_path (str): full path to csv file with sample metadata for experiment.
+        - pert_types (list of strings): list of perturbagen types. Default=None.
+        - cell_ids (list of strings): list of cell types. Default=None.
+        - only_landmark (bool): whether to only subset landmark genes. Default=True.
+        
+    Output: 
+        - data (dataframe): L1000 expression dataframe (samples x genes).
+        - sample_metadata (dataframe): (samples x metadata).
+        - gene_ids (ndarray): array with entrez ids for each gene (same as colnames in data).
+    """
     ridx_max = N_LANDMARK_GENES if only_landmark else None  # only select landmark genes
-    subset_metadata = subset_samples(col_meta_path, pert_types, cell_ids)
+    sample_metadata = subset_samples(col_meta_path, pert_types, cell_ids)
     with h5py.File(data_path, "r") as gctx_file:
-        # read in metadata columns
-        all_sample_ids = gctx_file[CID_NODE][:].astype(str)
-        gene_labels = gctx_file[RID_NODE][:ridx_max].astype(
-            str
-        )  # first 978 are landmark
+        # Extract sample-ids (col_meta) and gene_ids (row_meta)
+        all_sample_ids = pd.Index(gctx_file[CID_NODE][:].astype(str))
+        gene_ids = gctx_file[RID_NODE][:ridx_max].astype(str)
+        sample_mask = all_sample_ids.isin(sample_metadata.index)
 
-        # read in dataset
+        # Allow data to be read in chunks in parallel (dask)
         data_dset = gctx_file[DATA_NODE]
-        data = da.from_array(data_dset)
+        data = da.from_array(data_dset) # dask array
+        data = dd.from_dask_array(data[sample_mask, :ridx_max], columns=gene_ids).compute() # compute in parallel
+        data = data.set_index(all_sample_ids[sample_mask])
+        
+    sample_metadata = sample_metadata.reindex(data.index)
+    return data, sample_metadata, gene_ids
 
-        # create mask for desired ids
-        mask = np.isin(all_sample_ids, subset_metadata.inst_id.values.astype(str))
-        data = dd.from_dask_array(data[mask, :ridx_max], columns=gene_labels).compute()
-        data["inst_id"] = all_sample_ids[mask]
-        data = data.set_index("inst_id")
-
-    col_meta = (
-        pd.DataFrame({"inst_id": all_sample_ids[mask]})
-        .join(subset_metadata.set_index("inst_id"), on="inst_id")
-        .set_index("inst_id")
+def subset_samples(sample_meta_path, pert_types, cell_ids):
+    """Filters metadata by cell_id and pert_type.
+    
+    Input:
+        - sample_meta_path (str): full path to csv file with sample metadata for experiment.
+        - pert_types (list of strings): list of perturbagen types.
+        - cell_ids (list of strings): list of cell types.
+    
+    Output:
+        - metadata (dataframe): metadata for filtered samples.
+    """
+    metadata = pd.read_csv(
+        sample_meta_path, sep="\t", na_values="-666", index_col="inst_id", low_memory=False
     )
-    return col_meta, gene_labels, data
 
+    if pert_types:
+        metadata = metadata[metadata.pert_type.isin(pert_types)]
 
-def subset_samples(col_meta_path, pert_types, cell_ids):
-    metadata = pd.read_csv(col_meta_path, sep="\t", low_memory=False)
-    # filter metadata by pert types and cell ids
+    if cell_ids:
+        metadata = metadata[metadata.cell_id.isin(cell_ids)]
 
-    if cell_ids is None:
-        filtered_metadata = metadata[metadata.pert_type.isin(pert_types)]
-    else:
-        filtered_metadata = metadata[
-            metadata.pert_type.isin(pert_types) & metadata.cell_id.isin(cell_ids)
-        ]
-    return filtered_metadata
+    return metadata
 
 
 def split_data(X, y, p1=0.2, p2=0.2):

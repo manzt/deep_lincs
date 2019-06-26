@@ -55,7 +55,7 @@ if __name__ == "__main__":
     print(f"pert types: {pert_types}\n")
 
     print(f"Loading data...")
-    sample_meta, gene_labels, data = load_data(
+    data, sample_meta, gene_ids = load_data(
         data_path, sample_meta_path, pert_types, cell_ids
     )
 
