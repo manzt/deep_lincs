@@ -1,5 +1,6 @@
 import os
 import csv
+import datetime
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -15,6 +16,7 @@ pert_types = [
     "ctl_untrt",  # untreated samples
 ]
 cell_ids = ["VCAP", "MCF7", "PC3"]  # prostate tumor  # breast tumor  # prostate tumor
+n_epochs = 10 
 batch_size = 64  # for training
 recorded_samples = 1000  # number of samples to record to csv
 n_replicates = 4
@@ -29,6 +31,8 @@ data_path = os.path.join(data_dir, data_fname)
 
 sample_meta_fname = "GSE92742_Broad_LINCS_inst_info.txt"
 sample_meta_path = os.path.join(data_dir, sample_meta_fname)
+
+out_dir = "../data/dark_units"
 
 
 def h_to_df(hidden_output, meta_data):
@@ -71,7 +75,11 @@ if __name__ == "__main__":
     train_dataset = create_tf_dataset(
         train[0].values, train[0].values, batch_size=batch_size
     )
-
+    
+    # Tensorboard stuff
+    logdir = os.path.join("logs", f"darkunits_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
+    
     # Train models and evaluate
     rows = []
     for h_size in h_sizes:
@@ -82,11 +90,11 @@ if __name__ == "__main__":
 
             model.fit(
                 train_dataset,
-                epochs=2,
+                epochs=n_epochs,
                 shuffle=True,
                 steps_per_epoch=train[0].shape[0] // batch_size,
                 validation_data=(val[0].values, val[0].values),
-                verbose=False,
+                callbacks=[tensorboard_callback]
             )
 
             encoder = Model(
@@ -94,18 +102,25 @@ if __name__ == "__main__":
             )
             h = encoder.predict(test[0])
             df = h_to_df(h, test[1])
-            df.sample(recorded_samples).to_csv(f"{h_size}_{rep}.csv", index=False)
+            df.sample(recorded_samples).to_csv(
+                os.path.join(out_dir, f"{h_size}_{rep}.csv"), index=False
+            )
+            
+            model_eval = model.evaluate(test[0].values, test[0].values)
 
             row = {
                 "n_hidden": h_size,
                 "replicate": rep,
                 "n_inactive": np.sum(h.sum(axis=0) < 0.01),
+                "loss": model_eval[0],
+                "cosine_sim": model_eval[1],
+                "pearsons": model_eval[2]
             }
             rows.append(row)
 
     with open("dark_unit_summary.csv", "w") as f:
         csv_writer = csv.DictWriter(
-            f, fieldnames=["n_hidden", "replicate", "n_inactive"]
+            f, fieldnames=["n_hidden", "replicate", "n_inactive", "loss", "cosine_sim", "pearsons"]
         )
         csv_writer.writeheader()
         csv_writer.writerows(rows)
