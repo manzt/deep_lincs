@@ -20,7 +20,9 @@ ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
 
 
-def load_data(data_path, col_meta_path, pert_types=None, cell_ids=None, only_landmark=True):
+def load_data(
+    data_path, col_meta_path, pert_types=None, cell_ids=None, only_landmark=True
+):
     """Loads Level3 or Level4 data (gtcx) and subsets by cell_id and pert_type.
     
      GTCX (HFD5):                             Dataframe:
@@ -49,18 +51,21 @@ def load_data(data_path, col_meta_path, pert_types=None, cell_ids=None, only_lan
     sample_metadata = subset_samples(col_meta_path, pert_types, cell_ids)
     with h5py.File(data_path, "r") as gctx_file:
         # Extract sample-ids (col_meta) and gene_ids (row_meta)
-        all_sample_ids = pd.Index(gctx_file[CID_NODE][:].astype(str))
+        all_sample_ids = pd.Index(gctx_file[CID_NODE][:].astype(str), name="inst_id")
         gene_ids = gctx_file[RID_NODE][:ridx_max].astype(str)
         sample_mask = all_sample_ids.isin(sample_metadata.index)
 
         # Allow data to be read in chunks in parallel (dask)
         data_dset = gctx_file[DATA_NODE]
-        data = da.from_array(data_dset) # dask array
-        data = dd.from_dask_array(data[sample_mask, :ridx_max], columns=gene_ids).compute() # compute in parallel
+        data = da.from_array(data_dset)  # dask array
+        data = dd.from_dask_array(
+            data[sample_mask, :ridx_max], columns=gene_ids
+        ).compute()  # compute in parallel
         data = data.set_index(all_sample_ids[sample_mask])
-        
+
     sample_metadata = sample_metadata.reindex(data.index)
     return data, sample_metadata, gene_ids
+
 
 def subset_samples(sample_meta_path, pert_types, cell_ids):
     """Filters metadata by cell_id and pert_type.
@@ -74,7 +79,11 @@ def subset_samples(sample_meta_path, pert_types, cell_ids):
         - metadata (dataframe): metadata for filtered samples.
     """
     metadata = pd.read_csv(
-        sample_meta_path, sep="\t", na_values="-666", index_col="inst_id", low_memory=False
+        sample_meta_path,
+        sep="\t",
+        na_values="-666",
+        index_col="inst_id",
+        low_memory=False,
     )
 
     if pert_types:
