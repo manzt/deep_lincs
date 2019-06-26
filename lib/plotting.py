@@ -3,12 +3,16 @@ import matplotlib.pyplot as plt
 import altair as alt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from umap import UMAP
 
+from .utils import get_file_info
+
+sns.set(color_codes=True)
 MATPLOT_COLORS = [
     "tab:blue",
     "tab:orange",
@@ -133,6 +137,15 @@ def plot_embedding(file_path, type_="pca"):
         .properties(title=f"hidden units: {n_hidden}, rep: {rep}")
     )
 
+def plot_clustermap(file_path):
+    n_hidden, rep = get_file_info(file_path)
+    data = pd.read_csv(file_path, na_values="-666", index_col="inst_id")
+    units = data.iloc[:, -n_hidden:]
+    
+    cell_ids = data.pop("cell_id")
+    lut = dict(zip(cell_ids.unique(), "rbg"))
+    row_colors = cell_ids.map(lut)
+    sns.clustermap(units, row_colors=row_colors)
 
 def get_file_info(file_path):
     return [int(s) for s in file_path.split("/")[-1].split(".")[0].split("_")]
