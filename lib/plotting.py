@@ -116,36 +116,40 @@ def plot_heatmap(file_name, N=5, width=None):
 def plot_embedding(file_path, type_="pca"):
     n_hidden, rep = get_file_info(file_path)
     data = pd.read_csv(file_path, na_values="-666", index_col="inst_id")
-    x = data.iloc[:, -n_hidden:].values
+    activations = data.iloc[:, -n_hidden:].values
 
     if type_ == "pca":
-        embedding = PCA(n_components=2).fit_transform(x)
+        embedding = PCA(n_components=2).fit_transform(activations)
 
     elif type_ == "umap":
-        embedding = UMAP().fit_transform(x)
+        embedding = UMAP().fit_transform(activations)
 
     elif type_ == "tsne":
-        embedding = TSNE().fit_transform(x)
+        embedding = TSNE().fit_transform(activations)
 
-    df = pd.DataFrame(data=embedding, columns=[f"{type_}_1", f"{type_}_2"])
+    df = pd.DataFrame(
+        data=embedding, columns=[f"{type_}_1", f"{type_}_2"], index=data.index
+    )
     df["cell_id"] = data.cell_id.values
 
     return (
-        alt.Chart(df)
+        alt.Chart(df.reset_index())
         .mark_circle()
-        .encode(x=f"{type_}_1", y=f"{type_}_2", color="cell_id")
+        .encode(x=f"{type_}_1", y=f"{type_}_2", color="cell_id", tooltip=["inst_id"])
         .properties(title=f"hidden units: {n_hidden}, rep: {rep}")
     )
+
 
 def plot_clustermap(file_path):
     n_hidden, rep = get_file_info(file_path)
     data = pd.read_csv(file_path, na_values="-666", index_col="inst_id")
     units = data.iloc[:, -n_hidden:]
-    
+
     cell_ids = data.pop("cell_id")
     lut = dict(zip(cell_ids.unique(), "rbg"))
     row_colors = cell_ids.map(lut)
     sns.clustermap(units, row_colors=row_colors)
+
 
 def get_file_info(file_path):
     return [int(s) for s in file_path.split("/")[-1].split(".")[0].split("_")]
