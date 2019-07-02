@@ -8,3 +8,6 @@ __pycache__
 
 logs/
 scratch.ipynb
+
+# output data from notebooks
+data/
