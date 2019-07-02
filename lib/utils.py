@@ -126,6 +126,24 @@ def compute_summary_stats(data_path):
 
     return df
 
-def get_file_info(file_path):
-    return [int(s) for s in file_path.split("/")[-1].split(".")[0].split("_")]
+
+def get_hidden_activations(samples_df, encoder):
+    h = encoder.predict(samples_df)
+    colnames=[f"unit_{i}" for i in range(h.shape[1])]
+    return pd.DataFrame(h, columns=colnames, index=samples_df.index)
+
+
+def get_most_activating_ids(hidden_output, size=100):
+    most_activating_ids = {}
+    for unit in hidden_output.columns:
+        ids = hidden_output.sort_values(unit, ascending=False).head(100).index
+        most_activating_ids[unit] = ids
+    return most_activating_ids
+
+
+def lookup_samples(data_df, inst_ids):
+    return data_df[data_df.index.isin(inst_ids)]
+    
+
+
 
