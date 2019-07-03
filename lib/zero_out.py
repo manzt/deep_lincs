@@ -19,8 +19,8 @@ def zero_out_difference(data_df, encoder):
     return (expected_h[:, np.newaxis] - zero_out_h) ** 2
 
 
-def zero_out_method(encoder, data, meta_data, k=5):
-    diff_tensor = zero_out_difference(data, encoder)
+def zero_out_method(encoder, dataset, k=5):
+    diff_tensor = zero_out_difference(dataset.data, encoder)
     nsamples, ngenes, nunits = diff_tensor.shape
 
     kth_idxs = (-diff_tensor).argsort(1)[:, :k, :].reshape(nsamples * k, nunits)
@@ -30,9 +30,9 @@ def zero_out_method(encoder, data, meta_data, k=5):
 
     df = (
         pd.DataFrame(
-            np.concatenate((data.columns.values[kth_idxs].astype(int), k_rank), axis=1),
+            np.concatenate((dataset.data.columns.values[kth_idxs].astype(int), k_rank), axis=1),
             columns=units + ["k_rank"],
-            index=data.index.repeat(k),
+            index=dataset.data.index.repeat(k),
         )
         .reset_index()
         .melt(
@@ -42,7 +42,7 @@ def zero_out_method(encoder, data, meta_data, k=5):
             value_name="gene_id",
         )
         .set_index("inst_id")
-        .join(meta_data["cell_id"])
+        .join(dataset.sample_meta["cell_id"])
     )
 
     return df
