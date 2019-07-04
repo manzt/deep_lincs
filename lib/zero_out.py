@@ -42,7 +42,6 @@ def zero_out_method(encoder, dataset, k=5):
             value_name="gene_id",
         )
         .set_index("inst_id")
-        .join(dataset.sample_meta["cell_id"])
     )
 
     return df
