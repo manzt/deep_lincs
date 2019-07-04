@@ -10,8 +10,6 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from umap import UMAP
 
-from .utils import get_file_info
-
 sns.set(color_codes=True)
 MATPLOT_COLORS = [
     "tab:blue",
@@ -27,7 +25,7 @@ MATPLOT_COLORS = [
 ]
 
 
-def create_cdict(metadata_labels):
+def create_cdict(meta_labels):
     labels = np.unique(meta_labels)
     return dict(zip(labels, MATPLOT_COLORS[: len(labels)]))
 
@@ -138,17 +136,12 @@ def plot_embedding(file_path, type_="pca"):
         .encode(x=f"{type_}_1", y=f"{type_}_2", color="cell_id", tooltip=["inst_id"])
         .properties(title=f"hidden units: {n_hidden}, rep: {rep}")
     )
-
-
-def plot_clustermap(file_path):
-    n_hidden, rep = get_file_info(file_path)
-    data = pd.read_csv(file_path, na_values="-666", index_col="inst_id")
-    units = data.iloc[:, -n_hidden:]
-
-    cell_ids = data.pop("cell_id")
-    lut = dict(zip(cell_ids.unique(), "rbg"))
-    row_colors = cell_ids.map(lut)
-    sns.clustermap(units, row_colors=row_colors)
+    
+def plot_clustermap(data, meta_data, meta_colname):
+    meta_col = meta_data[meta_colname]
+    cdict = create_cdict(meta_col)
+    row_colors = meta_col.map(cdict)
+    sns.clustermap(data, row_colors=row_colors, z_score=0)
 
 
 def get_file_info(file_path):
