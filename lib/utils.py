@@ -6,6 +6,11 @@ import dask.array as da
 import dask.dataframe as dd
 import h5py
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from umap import UMAP
+
 from .LINCSDataset import LINCSDataset
 
 # L1000 Data
@@ -125,12 +130,12 @@ def get_most_activating_ids(hidden_output, size=100):
 
 def embed_hidden_output(hidden_output, type_="pca"):
     if type_ == "pca":
-        embedding = PCA(n_components=2).fit_transform(activations)
+        embedding = PCA(n_components=2).fit_transform(hidden_output)
 
     elif type_ == "umap":
-        embedding = UMAP().fit_transform(activations)
+        embedding = UMAP().fit_transform(hidden_output)
 
     elif type_ == "tsne":
-        embedding = TSNE().fit_transform(activations)
+        embedding = TSNE().fit_transform(hidden_output)
     
-    return embedding
+    return pd.DataFrame(embedding, columns=[f"{type_}_{i}" for i in range(1,3)], index=hidden_output.index)
