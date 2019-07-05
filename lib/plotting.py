@@ -10,8 +10,6 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from umap import UMAP
 
-from .utils import get_file_info
-
 sns.set(color_codes=True)
 MATPLOT_COLORS = [
     "tab:blue",
@@ -27,7 +25,7 @@ MATPLOT_COLORS = [
 ]
 
 
-def create_cdict(metadata_labels):
+def create_cdict(meta_labels):
     labels = np.unique(meta_labels)
     return dict(zip(labels, MATPLOT_COLORS[: len(labels)]))
 
@@ -111,13 +109,10 @@ def plot_heatmap(file_name, N=5, width=None):
     )
 
     return heatmap
+    
 
-
-def plot_embedding(file_path, type_="pca"):
-    n_hidden, rep = get_file_info(file_path)
-    data = pd.read_csv(file_path, na_values="-666", index_col="inst_id")
-    activations = data.iloc[:, -n_hidden:].values
-
+def plot_embedding(hidden_output_df, meta_data_df, color="cell_id", type_="pca"):
+    activations = hidden_output_df.values
     if type_ == "pca":
         embedding = PCA(n_components=2).fit_transform(activations)
 
@@ -128,27 +123,20 @@ def plot_embedding(file_path, type_="pca"):
         embedding = TSNE().fit_transform(activations)
 
     df = pd.DataFrame(
-        data=embedding, columns=[f"{type_}_1", f"{type_}_2"], index=data.index
+        data=embedding, columns=[f"{type_}_1", f"{type_}_2"], index=hidden_output_df.index
     )
-    df["cell_id"] = data.cell_id.values
+    
+    df = df.join(meta_data_df)
 
-    return (
-        alt.Chart(df.reset_index())
-        .mark_circle()
-        .encode(x=f"{type_}_1", y=f"{type_}_2", color="cell_id", tooltip=["inst_id"])
-        .properties(title=f"hidden units: {n_hidden}, rep: {rep}")
+    return alt.Chart(df.reset_index()).mark_circle().encode(
+        x=f"{type_}_1", y=f"{type_}_2", color=color, tooltip=["inst_id"]
     )
-
-
-def plot_clustermap(file_path):
-    n_hidden, rep = get_file_info(file_path)
-    data = pd.read_csv(file_path, na_values="-666", index_col="inst_id")
-    units = data.iloc[:, -n_hidden:]
-
-    cell_ids = data.pop("cell_id")
-    lut = dict(zip(cell_ids.unique(), "rbg"))
-    row_colors = cell_ids.map(lut)
-    sns.clustermap(units, row_colors=row_colors)
+    
+def plot_clustermap(data, meta_data, meta_colname):
+    meta_col = meta_data[meta_colname]
+    cdict = create_cdict(meta_col)
+    row_colors = meta_col.map(cdict)
+    sns.clustermap(data, row_colors=row_colors, z_score=0)
 
 
 def get_file_info(file_path):
