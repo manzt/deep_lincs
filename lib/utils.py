@@ -122,3 +122,15 @@ def get_most_activating_ids(hidden_output, size=100):
         most_activating_ids[unit] = ids
     return most_activating_ids
 
+
+def embed_hidden_output(hidden_output, type_="pca"):
+    if type_ == "pca":
+        embedding = PCA(n_components=2).fit_transform(activations)
+
+    elif type_ == "umap":
+        embedding = UMAP().fit_transform(activations)
+
+    elif type_ == "tsne":
+        embedding = TSNE().fit_transform(activations)
+    
+    return embedding
