@@ -110,19 +110,40 @@ class HiddenEmbedding:
 
     def plot_embedding(self, type_="PCA", color="cell_id"):
         TYPE = type_.upper()
-
+        embedding = self._embed_hidden_output(TYPE)
         df = (
             pd.DataFrame(
-                data=self._embed_hidden_output(TYPE),
-                columns=[f"{TYPE}_1", f"{TYPE}_2"],
-                index=self._h.index,
+                embedding, columns=[f"{TYPE}_1", f"{TYPE}_2"], index=self._h.index
             )
-            .join(self._dataset.sample_meta)
+            .join(self._dataset.sample_meta[[color]])  # add metadata
             .reset_index()
         )
-
         return (
             alt.Chart(df)
             .mark_circle()
             .encode(x=f"{TYPE}_1", y=f"{TYPE}_2", color=color, tooltip=["inst_id"])
         )
+
+    def plot_unit_counts(self, meta_field="cell_id", thresh=0):
+        counts = self.count_gene_frequency(by=meta_field).query(f"freq > {thresh}")
+        barplot = (
+            alt.Chart(counts)
+            .transform_calculate(
+                url="https://www.ncbi.nlm.nih.gov/gene/" + alt.datum.gene_id
+            )
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "gene_symbol:N",
+                    sort=alt.EncodingSortField(field="freq", order="descending"),
+                ),
+                y="freq:Q",
+                color=f"{meta_field}:N",
+                href="url:N",
+                tooltip=["gene_id:N", "gene_symbol:N", "freq:Q", f"{meta_field}:N"],
+            )
+            .properties(height=50, width=850)
+            .facet(row="unit")
+        )
+
+        return barplot
