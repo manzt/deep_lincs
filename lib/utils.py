@@ -69,11 +69,16 @@ def load_data(
         data = data.set_index(all_sample_ids[sample_mask])
 
     sample_metadata = sample_metadata.reindex(data.index)
-    gene_metadata = pd.read_csv(gene_meta_path, sep="\t", index_col="pr_gene_id")
-    gene_metadata = gene_metadata[gene_metadata.index.isin(gene_ids)]
+    
+    gene_metadata = load_gene_metadata(gene_meta_path, gene_ids)
     return LINCSDataset(data, sample_metadata, gene_metadata)
 
-
+def load_gene_metadata(gene_meta_path, gene_ids):
+    data = pd.read_csv(gene_meta_path, sep="\t")
+    data.columns = data.columns.str.slice(3) # remove leading "pr_" from columns
+    data = data.set_index("gene_id")
+    return data[data.index.isin(gene_ids)]
+    
 def subset_samples(sample_meta_path, pert_types, cell_ids):
     """Filters metadata by cell_id and pert_type.
     

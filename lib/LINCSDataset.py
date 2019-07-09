@@ -12,7 +12,7 @@ class LINCSDataset:
         self.pert_types = sample_meta_df.pert_type.unique()
         self.cell_ids = sample_meta_df.cell_id.unique()
 
-    def sample_rows(self, meta_groups=None, size=100):
+    def sample_rows(self, size=100, meta_groups=None):
         sample_meta_subset = (
             self.sample_meta.sample(size)
             if meta_groups is None
@@ -90,7 +90,7 @@ class LINCSDataset:
         if gene_id:
             gene_mask = self.gene_meta.index == int(gene_id)
         elif gene_symbol:
-            gene_mask = self.gene_meta.pr_gene_symbol == str(gene_symbol)
+            gene_mask = self.gene_meta.gene_symbol == str(gene_symbol)
 
         gene_info = self.gene_meta[gene_mask]
         if gene_info.shape[0] == 0:
