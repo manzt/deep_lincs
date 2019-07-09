@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 def repeat_and_zero_diag(data_df):
     nsamples, ngenes = data_df.values.shape
     repeated = np.repeat(data_df.values, ngenes, axis=0)
@@ -9,35 +10,40 @@ def repeat_and_zero_diag(data_df):
     return repeated
 
 
-def zero_out_difference(data_df, encoder, prune_inactive):
+def zero_out_difference(data_df, encoder):
     nsamples, ngenes = data_df.values.shape
     repeated = repeat_and_zero_diag(data_df)
-    
+
     expected_h = encoder.predict(data_df.values)
     zero_out_h = encoder.predict(repeated)
-    units=np.arange(expected_h.shape[1])
-    
-    if prune_inactive:
-        mask = expected_h.sum(axis=0) >= 0.001
-        expected_h = expected_h[:,mask]
-        zero_out_h = zero_out_h[:,mask]
-        units = units[mask]
-    
+    units = np.arange(expected_h.shape[1])
+
     zero_out_h = zero_out_h.reshape(nsamples, ngenes, zero_out_h.shape[1])
-    unit_names = [f"unit_{i}" for i in units]
-    return (expected_h[:, np.newaxis] - zero_out_h) ** 2, unit_names
+    return (expected_h[:, np.newaxis] - zero_out_h) ** 2
 
 
-def zero_out_method(encoder, dataset, k=5, prune_inactive=True):
-    diff_tensor, unit_names = zero_out_difference(dataset.data, encoder, prune_inactive)
+def zero_out_method(encoder, dataset, k=5):
+    diff_tensor = zero_out_difference(dataset.data, encoder)
     nsamples, ngenes, nunits = diff_tensor.shape
 
-    kth_idxs = (-diff_tensor).argsort(1)[:, :k, :].reshape(nsamples * k, nunits)
+    kth_idxs = (-diff_tensor).argsort(1)[:, :k, :]
+    kth_genes = dataset.data.columns.values[kth_idxs].astype(int)
+
+    # find which units are inactive for each sample across all genes
+    total_diff_per_sample = diff_tensor.sum(1)
+    total_diff_mask = np.where(total_diff_per_sample == 0, np.nan, 1)
+
+    kth_genes = (
+        kth_genes * total_diff_mask[:, np.newaxis]
+    )  # set gene ids to nan if total diff is 0
+
     k_rank = np.tile(np.arange(k), nsamples)[:, np.newaxis]
+
+    unit_names = [f"unit_{i}" for i in range(nunits)]
 
     df = (
         pd.DataFrame(
-            np.concatenate((dataset.data.columns.values[kth_idxs].astype(int), k_rank), axis=1),
+            np.concatenate((kth_genes.reshape(nsamples * k, nunits), k_rank), axis=1),
             columns=unit_names + ["k_rank"],
             index=dataset.data.index.repeat(k),
         )
@@ -49,6 +55,10 @@ def zero_out_method(encoder, dataset, k=5, prune_inactive=True):
             value_name="gene_id",
         )
         .set_index("inst_id")
+        .dropna()  # remove NaNs
     )
+
+    df["k_rank"] = df["k_rank"].astype(int)
+    df["gene_id"] = df["gene_id"].astype(int)
 
     return df
