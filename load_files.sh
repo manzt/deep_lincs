@@ -7,7 +7,7 @@ GEO_URL=https://www.ncbi.nlm.nih.gov/geo
 files=(
     Level3_INF_mlr12k_n1319138x12328.gctx
     cell_info.txt
-    gene_info_delta_landmark.txt
+    gene_info.txt
     inst_info.txt
     pert_info.txt
 )
