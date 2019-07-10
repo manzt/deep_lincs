@@ -64,19 +64,101 @@ class HiddenEmbedding:
         df["gene_id"] = df["gene_id"].astype(int)
         self._ranked_genes = df
 
-    def count_gene_frequency(self, by, k_max=50):
-        meta_groups = [by, "unit", "gene_id"]
-        count_df = (
+    def get_genes_by_unit(self, by=None, units=None, count_thresh=0, k_max=50):
+        counts = self._count_gene_frequency(by, count_thresh, k_max)
+        if units is not None:
+            counts = counts.query(
+                "unit == " + " | unit == ".join([f"'unit_{i}'" for i in units])
+            )
+        ids = {unit: {} for unit in counts.unit.unique()}
+        for unit_name in counts.unit.unique():
+            unit_activations = counts.query(f"unit == '{unit_name}'")
+            if by is None:
+                ids[unit_name] = unit_activations.gene_symbol.to_list()
+            else:
+                for item in unit_activations[by].unique():
+                    filtered = unit_activations.query(
+                        f"{by} == '{item}'"
+                    )
+#                     ids[unit_name][item] = list(zip(filtered.gene_symbol.to_list(), filtered.freq.to_list())) # show freq and gene_names
+                    ids[unit_name][item] = filtered.gene_symbol.to_list() # just gene names
+        return ids
+
+    def plot_clustermap(self, meta_colname="cell_id"):
+        meta_col = self._dataset.sample_meta[meta_colname]
+        cdict = create_cdict(meta_col)
+        row_colors = meta_col.map(cdict)
+        sns.clustermap(self._h, row_colors=row_colors, z_score=0)
+
+    def plot_embedding(self, type_="PCA", color="cell_id"):
+        TYPE = type_.upper()
+        embedding = self._embed_hidden_output(TYPE)
+        df = (
+            pd.DataFrame(
+                embedding, columns=[f"{TYPE}_1", f"{TYPE}_2"], index=self._h.index
+            )
+            .join(self._dataset.sample_meta[[color]])  # add metadata
+            .reset_index()
+        )
+        return (
+            alt.Chart(df)
+            .mark_circle()
+            .encode(x=f"{TYPE}_1", y=f"{TYPE}_2", color=color, tooltip=["inst_id"])
+        )
+
+    def plot_unit_counts(
+        self, meta_field="cell_id", units=None, count_thresh=0, k_max=50
+    ):
+        counts = self._count_gene_frequency(
+            by=meta_field, count_thresh=count_thresh, k_max=k_max
+        )
+        if units is not None:
+            counts = counts.query(
+                "unit == " + " | unit == ".join([f"'unit_{i}'" for i in units])
+            )
+        barplot = (
+            alt.Chart(counts)
+            .transform_calculate(
+                url="https://www.ncbi.nlm.nih.gov/gene/" + alt.datum.gene_id
+            )
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "gene_symbol:N",
+                    sort=alt.EncodingSortField(field="freq", order="descending"),
+                ),
+                y="freq:Q",
+                color=f"{meta_field}:N",
+                href="url:N",
+                tooltip=["gene_id:N", "gene_symbol:N", "freq:Q", f"{meta_field}:N"],
+            )
+            .properties(height=50, width=850)
+            .facet(row="unit")
+        )
+        return barplot
+
+    def _k_and_per_unit_threshold(self, count_thresh, k_max):
+        return (
             self._ranked_genes.query(f"k_rank < {k_max}")  # filter for desired top_k
-            .join(self._dataset.sample_meta)  # add metadata for each sample
-            .groupby(meta_groups)
+            .groupby(["unit", "gene_id"])
+            .filter(
+                lambda x: len(x) > count_thresh
+            )  # set frequency thresh independent of meta-data
+        )
+
+    def _count_gene_frequency(self, by, count_thresh, k_max):
+        meta_groups = ["unit", "gene_id"]
+        threshed = self._k_and_per_unit_threshold(count_thresh, k_max)
+        counts_df = (
+            threshed.join(self._dataset.sample_meta)  # add metadata for each sample
+            .groupby([by] + meta_groups)  # `by` must be a field in metadata
             .size()  # count the frequency of each gene_id for each unit for each item of "by"
             .reset_index(name="freq")
             .merge(
                 self._dataset.gene_meta, left_on="gene_id", right_index=True
             )  # add gene metadata
         )
-        return count_df
+        return counts_df
 
     def _zero_out_difference(self):
         nsamples, ngenes = self._dataset.data.shape
@@ -101,49 +183,3 @@ class HiddenEmbedding:
             embedding = self.embedders[embedding_type].fit_transform(self._h.values)
             self._embeddings[embedding_type] = embedding
         return embedding
-
-    def plot_clustermap(self, meta_colname="cell_id"):
-        meta_col = self._dataset.sample_meta[meta_colname]
-        cdict = create_cdict(meta_col)
-        row_colors = meta_col.map(cdict)
-        sns.clustermap(self._h, row_colors=row_colors, z_score=0)
-
-    def plot_embedding(self, type_="PCA", color="cell_id"):
-        TYPE = type_.upper()
-        embedding = self._embed_hidden_output(TYPE)
-        df = (
-            pd.DataFrame(
-                embedding, columns=[f"{TYPE}_1", f"{TYPE}_2"], index=self._h.index
-            )
-            .join(self._dataset.sample_meta[[color]])  # add metadata
-            .reset_index()
-        )
-        return (
-            alt.Chart(df)
-            .mark_circle()
-            .encode(x=f"{TYPE}_1", y=f"{TYPE}_2", color=color, tooltip=["inst_id"])
-        )
-
-    def plot_unit_counts(self, meta_field="cell_id", thresh=0):
-        counts = self.count_gene_frequency(by=meta_field).query(f"freq > {thresh}")
-        barplot = (
-            alt.Chart(counts)
-            .transform_calculate(
-                url="https://www.ncbi.nlm.nih.gov/gene/" + alt.datum.gene_id
-            )
-            .mark_bar()
-            .encode(
-                x=alt.X(
-                    "gene_symbol:N",
-                    sort=alt.EncodingSortField(field="freq", order="descending"),
-                ),
-                y="freq:Q",
-                color=f"{meta_field}:N",
-                href="url:N",
-                tooltip=["gene_id:N", "gene_symbol:N", "freq:Q", f"{meta_field}:N"],
-            )
-            .properties(height=50, width=850)
-            .facet(row="unit")
-        )
-
-        return barplot
