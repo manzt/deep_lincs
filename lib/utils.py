@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from umap import UMAP
 
-from .LINCSDataset import LINCSDataset
+from .lincs_dataset import LINCSDataset
 
 # L1000 Data
 N_LANDMARK_GENES = 978
