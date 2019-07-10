@@ -31,16 +31,13 @@ class PearsonsR(Metric):
 
 def create_AE(hidden_layers, dropout=None, activation="relu", optimizer="adam", out_size=978):
     model = Sequential()
-    model.add(
-        layers.Dense(hidden_layers[0], activation=activation, input_shape=(out_size,))
-    )
-    if dropout:
-        model.add(layers.Dropout(dropout))
+    model.add(layers.Dropout(dropout, input_shape=(out_size,)))
+#     model.add(layers.Dense(hidden_layers[0], activation=activation))
+#     model.add(layers.Dropout(dropout))
 
-    for nunits in hidden_layers[1:]:
+    for nunits in hidden_layers:
         model.add(layers.Dense(nunits, activation=activation))
-        if dropout:
-            model.add(layers.Dropout(dropout))
+        model.add(layers.Dropout(dropout))
 
     model.add(layers.Dense(out_size, activation="relu"))
 
