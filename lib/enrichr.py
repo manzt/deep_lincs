@@ -1,34 +1,136 @@
 import json
 import requests
-import sys
-import gseapy as gp
+import pandas as pd
+import altair as alt
 
-ENRICHR_BASE_URL = "http://amp.pharm.mssm.edu/Enrichr"
-ENRICHR_URL = f"{ENRICHR_BASE_URL}/addList"
-ENRICHR_URL_A = f"{ENRICHR_BASE_URL}/view?userListId="
-DEFAULT_GENE_SETS = ["KEGG_2016", "KEGG_2013"]
+ENRICHR_BASE_URL = "http://amp.pharm.mssm.edu"
+ENRICH_FIELD_NAMES = [
+    "rank",
+    "term_name",
+    "pvalue",
+    "z_score",
+    "combined_score",
+    "overlapping_genes",
+    "adjusted_pvalue",
+    "old_pvalue",
+    "old_adjusted_pvalue",
+]
+DEFUALT_TOOLTIP_FIELDS = [
+    "term_name",
+    "pvalue",
+    "z_score",
+    "overlapping_genes",
+    "adjusted_pvalue",
+]
 
 
-def run_enrichr(
-    gene_list, label, outdir="enrichr", cutoff=0.1, gene_sets=DEFAULT_GENE_SETS
-):
-    return gp.enrichr(
-        gene_list=gene_list,
-        gene_sets=gene_sets,
-        outdir=f"enrichr/{cell_id}",
-        cutoff=cutoff,  # test dataset, use lower value from range(0,1)
-    )
+class EnrichrQuery:
+    def __init__(self, gene_list, description, library="Enrichr"):
+        self.gene_list = gene_list
+        self.description = description
+        self.library = library
+        self.user_list_id = self._add_list(gene_list, description)
+        self.enriched_output = {}
 
+    def enrich(self, gene_set_databases):
+        for db in gene_set_databases:
+            self.enriched_output[db] = self._enrich_gene_list(db)
 
-## TODO: remove dependency on gseapy 
-def request_enrichr(gene_list, description, enr_library, outdir):
-    payload = {"list": (None, gene_list), "description": (None, description)}
+    def plot(
+        self,
+        database=None,
+        pvalue_thresh=0.5,
+        ranking_field="combined_score",
+        color_field="adjusted_pvalue",
+        tooltip_fields=DEFUALT_TOOLTIP_FIELDS,
+    ):
+        if len(self.enriched_output) == 0:
+            raise Exception("No enrichement results. Please make query.")
+        if database in self.enriched_output.keys():
+            return self._make_barplot(
+                database,
+                self.enriched_output[database],
+                pvalue_thresh,
+                ranking_field,
+                color_field,
+                tooltip_fields,
+            )
+        barplots = [
+            self._make_barplot(
+                db, enr_res, pvalue_thresh, ranking_field, color_field, tooltip_fields
+            )
+            for db, enr_res in self.enriched_output.items()
+        ]
+        return alt.vconcat(*barplots)
 
-    res = requests.post(ENRICHR_URL, files=payload)
+    def _make_barplot(
+        self,
+        db_name,
+        enrich_result_df,
+        pvalue_thresh,
+        ranking_field,
+        color_field,
+        tooltip_fields,
+    ):
+        barchart = (
+            alt.Chart(enrich_result_df.query(f"adjusted_pvalue < {pvalue_thresh}"))
+            .mark_bar()
+            .encode(
+                x=f"{ranking_field}:Q",
+                y=alt.Y(
+                    "term_name:N",
+                    sort=alt.SortField(field=ranking_field, order="descending"),
+                    title=None,
+                ),
+                color=f"{color_field}:Q",
+                tooltip=tooltip_fields,
+            )
+            .properties(title=db_name)
+        )
+        return barchart
 
-    if not res.ok:
-        raise Exception("Enrichr not able to process request.")
+    def _enrich_gene_list(self, database):
+        url = (
+            f"{ENRICHR_BASE_URL}/{self.library}/"
+            f"enrich?userListId={self.user_list_id}"
+            f"&backgroundType={database}"
+        )
+        response = requests.get(url)
+        if not response.ok:
+            raise Exception(
+                f"Error fetching enrichment results from {database} database."
+            )
+        data = json.loads(response.text)
+        enrich_result_df = pd.DataFrame(data[database], columns=ENRICH_FIELD_NAMES)
+        return enrich_result_df
 
-    job = json.load(response.text)
+    def _add_list(self, gene_list, description):
+        """Posts gene list with description to Enrichr and returns ID."""
+        genes_str = "\n".join(gene_list)
+        payload = {"list": (None, genes_str), "description": (None, description)}
+        url = f"{ENRICHR_BASE_URL}/{self.library}/addList"
+        response = requests.post(url, files=payload)
+        if not response.ok:
+            raise Exception("Error analyzing gene list")
+        data = json.loads(response.text)
+        return data["userListId"]
 
-    user_list_id = job["userListId"]
+    def _view_list(self):
+        """Returns gene list and description by ID from Enrichr library."""
+        url = f"{ENRICHR_BASE_URL}/{self.library}/view?userListId={self.user_list_id}"
+        response = requests.get(url)
+        if not response.ok:
+            raise Exception("Error getting gene list")
+        data = json.loads(response.text)
+        return data
+
+    def __iter__(self):
+        for name, enrich_result_df in self.enriched_output.items():
+            yield name, enrich_result_df
+
+    def __repr__(self):
+        return (
+            f"<EnrichrQuery: num_genes: {len(self.gene_list)}, "
+            f"description: {self.description}, "
+            f"library: {self.library}>"
+        )
