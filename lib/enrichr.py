@@ -43,6 +43,8 @@ class EnrichrQuery:
         ranking_field="combined_score",
         color_field="adjusted_pvalue",
         tooltip_fields=DEFUALT_TOOLTIP_FIELDS,
+        color_scheme="lightgreyteal",
+        with_href=True,
     ):
         if len(self.enriched_output) == 0:
             raise Exception("No enrichement results. Please make query.")
@@ -54,10 +56,19 @@ class EnrichrQuery:
                 ranking_field,
                 color_field,
                 tooltip_fields,
+                color_scheme,
+                with_href,
             )
         barplots = [
             self._make_barplot(
-                db, enr_res, pvalue_thresh, ranking_field, color_field, tooltip_fields
+                db,
+                enr_res,
+                pvalue_thresh,
+                ranking_field,
+                color_field,
+                tooltip_fields,
+                color_scheme,
+                with_href,
             )
             for db, enr_res in self.enriched_output.items()
         ]
@@ -71,6 +82,8 @@ class EnrichrQuery:
         ranking_field,
         color_field,
         tooltip_fields,
+        color_scheme,
+        with_href,
     ):
         barchart = (
             alt.Chart(enrich_result_df.query(f"adjusted_pvalue < {pvalue_thresh}"))
@@ -82,11 +95,19 @@ class EnrichrQuery:
                     sort=alt.SortField(field=ranking_field, order="descending"),
                     title=None,
                 ),
-                color=f"{color_field}:Q",
+                color=alt.Color(
+                    f"{color_field}:Q",
+                    scale=alt.Scale(scheme=color_scheme),
+                    sort="descending",
+                ),
                 tooltip=tooltip_fields,
             )
             .properties(title=db_name)
         )
+        if with_href:
+            barchart = barchart.encode(href="url:N").transform_calculate(
+                url="https://www.google.com/search?q=" + alt.datum.term_name
+            )
         return barchart
 
     def _enrich_gene_list(self, database):
