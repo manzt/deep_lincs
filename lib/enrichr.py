@@ -45,6 +45,7 @@ class EnrichrQuery:
         tooltip_fields=DEFUALT_TOOLTIP_FIELDS,
         color_scheme="lightgreyteal",
         with_href=True,
+        size=0,
     ):
         if len(self.enriched_output) == 0:
             raise Exception("No enrichement results. Please make query.")
@@ -58,6 +59,7 @@ class EnrichrQuery:
                 tooltip_fields,
                 color_scheme,
                 with_href,
+                size,
             )
         barplots = [
             self._make_barplot(
@@ -69,6 +71,7 @@ class EnrichrQuery:
                 tooltip_fields,
                 color_scheme,
                 with_href,
+                size,
             )
             for db, enr_res in self.enriched_output.items()
         ]
@@ -84,9 +87,13 @@ class EnrichrQuery:
         tooltip_fields,
         color_scheme,
         with_href,
+        size,
     ):
+        data = enrich_result_df.query(f"adjusted_pvalue < {pvalue_thresh}")
+        if size:
+            data = data.sort_values(f"{ranking_field}").tail(size)
         barchart = (
-            alt.Chart(enrich_result_df.query(f"adjusted_pvalue < {pvalue_thresh}"))
+            alt.Chart(data)
             .mark_bar()
             .encode(
                 x=f"{ranking_field}:Q",
