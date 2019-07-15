@@ -62,8 +62,12 @@ class LINCSDataset:
         """Creates a tensorflow Dataset to be ingested by Keras."""
         data = self.data.copy()
         sample_meta = self.sample_meta.copy()
-        
-        y = data.values if target == "self" else pd.get_dummies(sample_meta[target]).values # one-hot encode feature-col
+
+        y = (
+            data.values
+            if target == "self"
+            else pd.get_dummies(sample_meta[target]).values
+        )  # one-hot encode feature-col
         dataset = tf.data.Dataset.from_tensor_slices((data.values, y))
         if repeated:
             dataset = dataset.repeat()
@@ -119,6 +123,9 @@ class LINCSDataset:
                 ),
             )
         )
+
+    def __len__(self):
+        return self.data.shape[0]
 
     def __repr__(self):
         nsamples, ngenes = self.data.shape
