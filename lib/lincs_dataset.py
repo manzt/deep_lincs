@@ -54,9 +54,10 @@ class LINCSDataset:
         X_train, X_val, y_train, y_val = train_test_split(
             X_train, y_train, test_size=p2
         )
-        self.train = LINCSDataset(X_train, y_train, self.gene_meta.copy())
-        self.val = LINCSDataset(X_val, y_val, self.gene_meta.copy())
-        self.test = LINCSDataset(X_test, y_test, self.gene_meta.copy())
+        train = LINCSDataset(X_train, y_train, self.gene_meta.copy())
+        val = LINCSDataset(X_val, y_val, self.gene_meta.copy())
+        test = LINCSDataset(X_test, y_test, self.gene_meta.copy())
+        return train, val, test
 
     def to_tf_dataset(self, target="self", shuffle=True, repeated=True, batch_size=32):
         """Creates a tensorflow Dataset to be ingested by Keras."""
@@ -122,6 +123,17 @@ class LINCSDataset:
                     title=f"{gene_info.pr_gene_symbol.values[0]}",
                 ),
             )
+        )
+    
+    def plot_meta_counts(self, meta_field, normalize=True, sort_values=True):
+        count_values = self.sample_meta[meta_field].value_counts(normalize=normalize)
+        labels = count_values.index.values
+        freq = count_values.values
+        df = pd.DataFrame({meta_field: labels, "freq": freq})
+
+        return alt.Chart(df).mark_bar().encode(
+            x=alt.X(meta_field, sort=None),
+            y=alt.Y("freq", title=None)
         )
 
     def __len__(self):
