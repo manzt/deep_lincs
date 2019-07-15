@@ -1,5 +1,6 @@
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
+import pandas as pd
 import altair as alt
 import os
 
@@ -59,12 +60,15 @@ class LINCSDataset:
 
     def to_tf_dataset(self, target="self", shuffle=True, repeated=True, batch_size=32):
         """Creates a tensorflow Dataset to be ingested by Keras."""
-        y = self.data.values if target == "self" else self.sample_meta[target]
-        dataset = tf.data.Dataset.from_tensor_slices((self.data.values, y))
+        data = self.data.copy()
+        sample_meta = self.sample_meta.copy()
+        
+        y = data.values if target == "self" else pd.get_dummies(sample_meta[target]).values # one-hot encode feature-col
+        dataset = tf.data.Dataset.from_tensor_slices((data.values, y))
         if repeated:
             dataset = dataset.repeat()
         if shuffle:
-            dataset = dataset.shuffle(buffer_size=self.data.shape[0])
+            dataset = dataset.shuffle(buffer_size=len(data))
         dataset = dataset.batch(batch_size)
         # `prefetch` lets the dataset fetch batches, in the background while the model is training.
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
