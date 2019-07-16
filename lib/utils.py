@@ -52,8 +52,7 @@ def load_data(
         - gene_ids (ndarray): array with entrez ids for each gene (same as colnames in data).
     """
     ridx_max = N_LANDMARK_GENES if only_landmark else None  # only select landmark genes
-    sample_metadata = subset_samples(inst_meta_path, pert_types, cell_ids)
-
+    sample_metadata = subset_samples(inst_meta_path, cell_meta_path, pert_types, cell_ids)
     with h5py.File(data_path, "r") as gctx_file:
         # Extract sample-ids (col_meta) and gene_ids (row_meta)
         all_sample_ids = pd.Index(gctx_file[CID_NODE][:].astype(str), name="inst_id")
@@ -68,10 +67,7 @@ def load_data(
         ).compute()  # compute in parallel
         data = data.set_index(all_sample_ids[sample_mask])
 
-    cell_info = pd.read_csv(cell_meta_path, sep="\t", na_values="-666")
-    sample_metadata = merge_cell_metadata(
-        cell_meta_path, sample_metadata.reindex(data.index)
-    )
+    sample_metadata = sample_metadata.reindex(data.index)
     gene_metadata = load_gene_metadata(gene_meta_path, gene_ids)
     return LINCSDataset(data, sample_metadata, gene_metadata)
 
@@ -87,10 +83,10 @@ def load_gene_metadata(gene_meta_path, gene_ids):
 
 def merge_cell_metadata(cell_meta_path, sample_meta_df):
     cell_info = pd.read_csv(cell_meta_path, sep="\t", na_values="-666")
-    return sample_meta_df.reset_index().merge(cell_info).set_index("inst_id")
+    return sample_meta_df.merge(cell_info)
 
 
-def subset_samples(sample_meta_path, pert_types, cell_ids):
+def subset_samples(sample_meta_path, cell_meta_path, pert_types, cell_ids):
     """Filters metadata by cell_id and pert_type.
     
     Input:
@@ -105,7 +101,6 @@ def subset_samples(sample_meta_path, pert_types, cell_ids):
         sample_meta_path,
         sep="\t",
         na_values="-666",
-        index_col="inst_id",
         low_memory=False,
     )
 
@@ -114,8 +109,9 @@ def subset_samples(sample_meta_path, pert_types, cell_ids):
 
     if cell_ids:
         metadata = metadata[metadata.cell_id.isin(cell_ids)]
-
-    return metadata
+    
+    metadata = merge_cell_metadata(cell_meta_path, metadata)
+    return metadata.set_index("inst_id")
 
 
 def compute_summary_stats(data_path):
