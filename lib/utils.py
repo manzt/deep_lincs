@@ -1,21 +1,12 @@
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-import numpy as np
 import pandas as pd
 import dask.array as da
 import dask.dataframe as dd
 import h5py
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-from umap import UMAP
-
 from .lincs_dataset import LINCSDataset
 
 # L1000 Data
 N_LANDMARK_GENES = 978
-N_SAMPLES = 1_319_138
 
 # HDF5 nodes
 RID_NODE = "/0/META/ROW/id"
@@ -26,11 +17,17 @@ COL_META_GROUP_NODE = "/0/META/COL"
 
 
 def load_data(
-    data_path, sample_meta_path, gene_meta_path, pert_types=None, cell_ids=None, only_landmark=True
+    data_path,
+    inst_meta_path,
+    cell_meta_path,
+    gene_meta_path,
+    pert_types=None,
+    cell_ids=None,
+    only_landmark=True,
 ):
     """Loads Level3 or Level4 data (gtcx) and subsets by cell_id and pert_type.
     
-     GTCX (HFD5):                             Dataframe:
+     GTCX (HFD5):                             LINCS DATASET:
            all genes              
          -------------                        landmark genes
         |             |                          -------- 
@@ -42,7 +39,9 @@ def load_data(
     
     Inputs:
         - data_path (str): full path to gctx file you want to parse.
-        - col_meta_path (str): full path to csv file with sample metadata for experiment.
+        - inst_meta_path (str): full path to tsv file with sample metadata.
+        - cell_meta_path (str): full path to tsv file with cell metadata.
+        - gene_meta_path (str): full path to tsv file with gene metadata.
         - pert_types (list of strings): list of perturbagen types. Default=None.
         - cell_ids (list of strings): list of cell types. Default=None.
         - only_landmark (bool): whether to only subset landmark genes. Default=True.
@@ -53,7 +52,8 @@ def load_data(
         - gene_ids (ndarray): array with entrez ids for each gene (same as colnames in data).
     """
     ridx_max = N_LANDMARK_GENES if only_landmark else None  # only select landmark genes
-    sample_metadata = subset_samples(sample_meta_path, pert_types, cell_ids)
+    sample_metadata = subset_samples(inst_meta_path, pert_types, cell_ids)
+
     with h5py.File(data_path, "r") as gctx_file:
         # Extract sample-ids (col_meta) and gene_ids (row_meta)
         all_sample_ids = pd.Index(gctx_file[CID_NODE][:].astype(str), name="inst_id")
@@ -68,17 +68,28 @@ def load_data(
         ).compute()  # compute in parallel
         data = data.set_index(all_sample_ids[sample_mask])
 
-    sample_metadata = sample_metadata.reindex(data.index)
-    
+    cell_info = pd.read_csv(cell_meta_path, sep="\t", na_values="-666")
+    sample_metadata = merge_cell_metadata(
+        cell_meta_path, sample_metadata.reindex(data.index)
+    )
     gene_metadata = load_gene_metadata(gene_meta_path, gene_ids)
     return LINCSDataset(data, sample_metadata, gene_metadata)
 
+
 def load_gene_metadata(gene_meta_path, gene_ids):
-    data = pd.read_csv(gene_meta_path, sep="\t")
-    data.columns = data.columns.str.slice(3) # remove leading "pr_" from columns
-    data = data.set_index("gene_id")
-    return data[data.index.isin(gene_ids)]
-    
+    gene_info = pd.read_csv(gene_meta_path, sep="\t")
+    gene_info.columns = gene_info.columns.str.slice(
+        3
+    )  # remove leading "pr_" from columns
+    gene_info = gene_info.set_index("gene_id")
+    return gene_info[gene_info.index.isin(gene_ids)]
+
+
+def merge_cell_metadata(cell_meta_path, sample_meta_df):
+    cell_info = pd.read_csv(cell_meta_path, sep="\t", na_values="-666")
+    return sample_meta_df.reset_index().merge(cell_info).set_index("inst_id")
+
+
 def subset_samples(sample_meta_path, pert_types, cell_ids):
     """Filters metadata by cell_id and pert_type.
     
@@ -106,6 +117,7 @@ def subset_samples(sample_meta_path, pert_types, cell_ids):
 
     return metadata
 
+
 def compute_summary_stats(data_path):
     with h5py.File(data_path) as f:
         data_dset = f[DATA_NODE]
@@ -117,30 +129,3 @@ def compute_summary_stats(data_path):
         df = ddf.describe().compute()
 
     return df
-
-
-def get_hidden_activations(samples_df, encoder):
-    h = encoder.predict(samples_df)
-    colnames=[f"unit_{i}" for i in range(h.shape[1])]
-    return pd.DataFrame(h, columns=colnames, index=samples_df.index)
-
-
-def get_most_activating_ids(hidden_output, size=100):
-    most_activating_ids = {}
-    for unit in hidden_output.columns:
-        ids = hidden_output.sort_values(unit, ascending=False).head(100).index
-        most_activating_ids[unit] = ids
-    return most_activating_ids
-
-
-def embed_hidden_output(hidden_output, type_="pca"):
-    if type_ == "pca":
-        embedding = PCA(n_components=2).fit_transform(hidden_output)
-
-    elif type_ == "umap":
-        embedding = UMAP().fit_transform(hidden_output)
-
-    elif type_ == "tsne":
-        embedding = TSNE().fit_transform(hidden_output)
-    
-    return pd.DataFrame(embedding, columns=[f"{type_}_{i}" for i in range(1,3)], index=hidden_output.index)
