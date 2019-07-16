@@ -57,13 +57,13 @@ class LincsNN:
 
 
 class Single_Classifier(LincsNN):
-    def __init__(self, dataset, target, normalize_by_gene=True):
+    def __init__(self, dataset, target, normalize_by_gene=True, p1=0.2, p2=0.2):
         self.target = target
-        self.in_size = dataset.data.shape[1]
-        self.out_size = len(dataset.sample_meta[target].unique())
+        self.in_size, self.out_size = self._get_in_out_size(dataset, target)
         if normalize_by_gene:
             dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split()
+        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
+
 
     def compile_model(
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
@@ -116,7 +116,19 @@ class Single_Classifier(LincsNN):
         )
 
         return (heatmap + text).properties(width=size, height=size)
-
+    
+    def _get_in_out_size(self, dataset, target):
+        unique_targets = dataset.sample_meta[target].unique().tolist()
+        if np.nan in unique_targets:
+            raise Exception(
+                f"Dataset contains np.nan entry in '{target}'. "
+                f"You can drop these samples to train the "
+                f"classifier with LINCSDataset.drop_na('{target}')."
+            )
+        in_size = dataset.data.shape[1]
+        out_size = len(unique_targets)
+        return in_size, out_size
+        
     def __repr__(self):
         return (
             f"<SingleClassifier: "
