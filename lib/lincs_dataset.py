@@ -1,5 +1,6 @@
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
+import pandas as pd
 import altair as alt
 import os
 
@@ -39,6 +40,17 @@ class LINCSDataset:
         return LINCSDataset(
             self.data[mask], self.sample_meta[mask], self.gene_meta.copy()
         )
+    
+    def dropna(self, subset, inplace=False):
+        if type(subset) == str:
+            subset = [subset]
+        if not inplace:
+            filtered_meta = self.sample_meta.dropna(subset=subset)
+            filtered_data = self.data[self.data.index.isin(filtered_meta.index)]
+            return LINCSDataset(filtered_data, filtered_meta, self.gene_meta.copy())
+        else:
+            self.sample_meta.dropna(subset=subset, inplace=True)
+            self.data = self.data[self.data.index.isin(self.sample_meta.index)]
 
     def normalize_by_gene(self):
         # TODO: requires train_val_test_split to be called after
@@ -53,18 +65,26 @@ class LINCSDataset:
         X_train, X_val, y_train, y_val = train_test_split(
             X_train, y_train, test_size=p2
         )
-        self.train = LINCSDataset(X_train, y_train, self.gene_meta.copy())
-        self.val = LINCSDataset(X_val, y_val, self.gene_meta.copy())
-        self.test = LINCSDataset(X_test, y_test, self.gene_meta.copy())
+        train = LINCSDataset(X_train, y_train, self.gene_meta.copy())
+        val = LINCSDataset(X_val, y_val, self.gene_meta.copy())
+        test = LINCSDataset(X_test, y_test, self.gene_meta.copy())
+        return train, val, test
 
     def to_tf_dataset(self, target="self", shuffle=True, repeated=True, batch_size=32):
         """Creates a tensorflow Dataset to be ingested by Keras."""
-        y = self.data.values if target == "self" else self.sample_meta[target]
-        dataset = tf.data.Dataset.from_tensor_slices((self.data.values, y))
+        data = self.data.copy()
+        sample_meta = self.sample_meta.copy()
+
+        y = (
+            data.values
+            if target == "self"
+            else pd.get_dummies(sample_meta[target]).values
+        )  # one-hot encode feature-col
+        dataset = tf.data.Dataset.from_tensor_slices((data.values, y))
         if repeated:
             dataset = dataset.repeat()
         if shuffle:
-            dataset = dataset.shuffle(buffer_size=self.data.shape[0])
+            dataset = dataset.shuffle(buffer_size=len(data))
         dataset = dataset.batch(batch_size)
         # `prefetch` lets the dataset fetch batches, in the background while the model is training.
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
@@ -115,6 +135,23 @@ class LINCSDataset:
                 ),
             )
         )
+    
+    def plot_meta_counts(self, meta_field, normalize=True, sort_values=True):
+        count_values = self.sample_meta[meta_field].value_counts(normalize=normalize)
+        labels = count_values.index.values
+        freq = count_values.values
+        df = pd.DataFrame({meta_field: labels, "freq": freq})
+
+        return alt.Chart(df).mark_bar().encode(
+            x=alt.X(meta_field, sort=None),
+            y=alt.Y("freq", title=None)
+        )
+    
+    def copy(self):
+        return LINCSDataset(self.data.copy(), self.sample_meta.copy(), self.gene_meta.copy())
+
+    def __len__(self):
+        return self.data.shape[0]
 
     def __repr__(self):
         nsamples, ngenes = self.data.shape
