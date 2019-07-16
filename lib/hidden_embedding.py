@@ -80,7 +80,8 @@ class HiddenEmbedding:
                     filtered = unit_activations.query(
                         f"{by} == '{item}'"
                     )
-#                     ids[unit_name][item] = list(zip(filtered.gene_symbol.to_list(), filtered.freq.to_list())) # show freq and gene_names
+                    # show freq and gene_names
+                    # ids[unit_name][item] = list(zip(filtered.gene_symbol.to_list(), filtered.freq.to_list())) 
                     ids[unit_name][item] = filtered.gene_symbol.to_list() # just gene names
         return ids
 
@@ -116,25 +117,13 @@ class HiddenEmbedding:
             counts = counts.query(
                 "unit == " + " | unit == ".join([f"'unit_{i}'" for i in units])
             )
-        barplot = (
-            alt.Chart(counts)
-            .transform_calculate(
-                url="https://www.ncbi.nlm.nih.gov/gene/" + alt.datum.gene_id
+        if len(counts) == 0: 
+            raise ValueError(
+                f"There are no genes (in the top-k of {k_max}) which "
+                f"exceed the count threshold of {count_thresh}. "
+                f"Try lowering this threshold or increasing the k_max."
             )
-            .mark_bar()
-            .encode(
-                x=alt.X(
-                    "gene_symbol:N",
-                    sort=alt.EncodingSortField(field="freq", order="descending"),
-                ),
-                y="freq:Q",
-                color=f"{meta_field}:N",
-                href="url:N",
-                tooltip=["gene_id:N", "gene_symbol:N", "freq:Q", f"{meta_field}:N"],
-            )
-            .properties(height=50, width=850)
-            .facet(row="unit")
-        )
+        barplot = self._create_barplot(counts, meta_field)
         return barplot
 
     def _k_and_per_unit_threshold(self, count_thresh, k_max):
@@ -183,3 +172,25 @@ class HiddenEmbedding:
             embedding = self.embedders[embedding_type].fit_transform(self._h.values)
             self._embeddings[embedding_type] = embedding
         return embedding
+    
+    def _create_barplot(self, counts_df, meta_field):
+        return (
+            alt.Chart(counts_df)
+            .transform_calculate(
+                url="https://www.ncbi.nlm.nih.gov/gene/" + alt.datum.gene_id
+            )
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "gene_symbol:N",
+                    sort=alt.EncodingSortField(field="freq", order="descending"),
+                ),
+                y="freq:Q",
+                color=f"{meta_field}:N",
+                href="url:N",
+                tooltip=["gene_id:N", "gene_symbol:N", "freq:Q", f"{meta_field}:N"],
+            )
+            .properties(height=50, width=850)
+            .facet(row="unit")
+        )
+        
