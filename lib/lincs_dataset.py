@@ -40,7 +40,7 @@ class LINCSDataset:
         return LINCSDataset(
             self.data[mask], self.sample_meta[mask], self.gene_meta.copy()
         )
-    
+
     def dropna(self, subset, inplace=False):
         if type(subset) == str:
             subset = [subset]
@@ -75,12 +75,17 @@ class LINCSDataset:
         data = self.data.copy()
         sample_meta = self.sample_meta.copy()
 
-        y = (
-            data.values
-            if target == "self"
-            else pd.get_dummies(sample_meta[target]).values
-        )  # one-hot encode feature-col
-        dataset = tf.data.Dataset.from_tensor_slices((data.values, y))
+        if target == "self":
+            y = data.values
+        elif type(target) == str:
+            y = pd.get_dummies(sample_meta[target]).values
+        elif type(target) == list:
+            y = tuple(pd.get_dummies(sample_meta[t]).values for t in target)
+
+        X = tf.data.Dataset.from_tensor_slices(data.values)
+        y = tf.data.Dataset.from_tensor_slices(y)
+        dataset = tf.data.Dataset.zip((X, y))
+
         if repeated:
             dataset = dataset.repeat()
         if shuffle:
@@ -135,20 +140,23 @@ class LINCSDataset:
                 ),
             )
         )
-    
+
     def plot_meta_counts(self, meta_field, normalize=True, sort_values=True):
         count_values = self.sample_meta[meta_field].value_counts(normalize=normalize)
         labels = count_values.index.values
         freq = count_values.values
         df = pd.DataFrame({meta_field: labels, "freq": freq})
 
-        return alt.Chart(df).mark_bar().encode(
-            x=alt.X(meta_field, sort=None),
-            y=alt.Y("freq", title=None)
+        return (
+            alt.Chart(df)
+            .mark_bar()
+            .encode(x=alt.X(meta_field, sort=None), y=alt.Y("freq", title=None))
         )
-    
+
     def copy(self):
-        return LINCSDataset(self.data.copy(), self.sample_meta.copy(), self.gene_meta.copy())
+        return LINCSDataset(
+            self.data.copy(), self.sample_meta.copy(), self.gene_meta.copy()
+        )
 
     def __len__(self):
         return self.data.shape[0]
