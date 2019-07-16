@@ -63,7 +63,7 @@ class LincsNN:
         return self.model.summary()
 
 
-class Single_Classifier(LincsNN):
+class SingleClassifier(LincsNN):
     def __init__(self, dataset, target, normalize_by_gene=True, p1=0.2, p2=0.2):
         self.target = target
         self.in_size, self.out_size = self._get_in_out_size(dataset, target)
