@@ -40,6 +40,17 @@ class LINCSDataset:
         return LINCSDataset(
             self.data[mask], self.sample_meta[mask], self.gene_meta.copy()
         )
+    
+    def dropna(self, subset, inplace=False):
+        if type(subset) == str:
+            subset = [subset]
+        if not inplace:
+            filtered_meta = self.sample_meta.dropna(subset=subset)
+            filtered_data = self.data[self.data.index.isin(filtered_meta.index)]
+            return LINCSDataset(filtered_data, filtered_meta, self.gene_meta.copy())
+        else:
+            self.sample_meta.dropna(subset=subset, inplace=True)
+            self.data = self.data[self.data.index.isin(self.sample_meta.index)]
 
     def normalize_by_gene(self):
         # TODO: requires train_val_test_split to be called after
@@ -135,6 +146,9 @@ class LINCSDataset:
             x=alt.X(meta_field, sort=None),
             y=alt.Y("freq", title=None)
         )
+    
+    def copy(self):
+        return LINCSDataset(self.data.copy(), self.sample_meta.copy(), self.gene_meta.copy())
 
     def __len__(self):
         return self.data.shape[0]
