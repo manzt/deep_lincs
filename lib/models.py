@@ -52,6 +52,13 @@ class LincsNN:
             ),
         )
 
+    def evaluate(self, batch_size=32):
+        return self.model.evaluate(
+            self.val.to_tf_dataset(
+                target=self.target, batch_size=batch_size, shuffle=False, repeated=False
+            )
+        )
+
     def summary(self):
         return self.model.summary()
 
@@ -63,7 +70,6 @@ class Single_Classifier(LincsNN):
         if normalize_by_gene:
             dataset.normalize_by_gene()
         self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
-
 
     def compile_model(
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
@@ -116,7 +122,7 @@ class Single_Classifier(LincsNN):
         )
 
         return (heatmap + text).properties(width=size, height=size)
-    
+
     def _get_in_out_size(self, dataset, target):
         unique_targets = dataset.sample_meta[target].unique().tolist()
         if np.nan in unique_targets:
@@ -128,7 +134,7 @@ class Single_Classifier(LincsNN):
         in_size = dataset.data.shape[1]
         out_size = len(unique_targets)
         return in_size, out_size
-        
+
     def __repr__(self):
         return (
             f"<SingleClassifier: "
@@ -139,13 +145,13 @@ class Single_Classifier(LincsNN):
 
 
 class AutoEncoder(LincsNN):
-    def __init__(self, dataset, normalize_by_gene=True):
+    def __init__(self, dataset, normalize_by_gene=True, p1=0.2, p2=0.2):
         self.target = "self"
         self.in_size = dataset.data.shape[1]
         self.out_size = dataset.data.shape[1]
         if normalize_by_gene:
             dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split()
+        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
