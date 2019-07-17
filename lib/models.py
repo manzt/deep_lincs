@@ -34,42 +34,60 @@ class PearsonsR(Metric):
         self.corrcoef.assign(0.0)
 
 
-class LincsNN:
-    def __init__(self):
-        pass
+class BaseNetwork:
+    def __init__(self, dataset, target, normalize_by_gene=True, p1=0.2, p2=0.2):
+        self.target = target
+        self._normalize_by_gene = normalize_by_gene
+        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(self):
         pass
 
     def fit(self, epochs=5, batch_size=32, shuffle=True):
+        train_dset = self.train.to_tf_dataset(
+            target=self.target,
+            batch_size=batch_size,
+            norm_batch_by_gene=self._normalize_by_gene,
+        )
+        val_dset = self.val.to_tf_dataset(
+            target=self.target,
+            batch_size=batch_size,
+            norm_batch_by_gene=self._normalize_by_gene,
+            shuffle=False,
+            repeated=False,
+        )
         self.model.fit(
-            self.train.to_tf_dataset(target=self.target, batch_size=batch_size),
+            train_dset,
             epochs=epochs,
             shuffle=shuffle,
             steps_per_epoch=len(self.train) // batch_size,
-            validation_data=self.val.to_tf_dataset(
-                target=self.target, batch_size=batch_size, shuffle=False, repeated=False
-            ),
+            validation_data=val_dset,
         )
 
-    def evaluate(self, batch_size=32):
-        return self.model.evaluate(
-            self.val.to_tf_dataset(
-                target=self.target, batch_size=batch_size, shuffle=False, repeated=False
-            )
+    def evaluate(self):
+        test_dset = self.test.to_tf_dataset(
+            target=self.target,
+            norm_batch_by_gene=self._normalize_by_gene,
+            shuffle=False,
+            repeated=False,
         )
+        return self.model.evaluate(test_dset)
+
+    def predict(self):
+        test_data = self.test.data.copy()
+        if self._normalize_by_gene:
+            test_data = test_data / test_data.max(axis=0)
+        output = self.model.predict(test_data)
+        return output
 
     def summary(self):
         return self.model.summary()
 
 
-class SingleClassifier(LincsNN):
-    def __init__(self, dataset, target, normalize_by_gene=True, p1=0.2, p2=0.2):
-        self.target = target
+class SingleClassifier(BaseNetwork):
+    def __init__(self, dataset, target, **kwargs):
+        super(SingleClassifier, self).__init__(dataset=dataset, target=target, **kwargs)
         self.in_size, self.out_size = self._get_in_out_size(dataset, target)
-        if normalize_by_gene:
-            dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
@@ -87,13 +105,6 @@ class SingleClassifier(LincsNN):
             optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
         )
         self.model = model
-
-    def predict(self, as_df=False):
-        output = self.model.predict(self.test.data)
-        if as_df:
-            colnames = [f"unit_{i}" for i in range(self.out_size)]
-            output = pd.DataFrame(output, columns=colnames, index=self.test.data.index)
-        return output
 
     def plot_confusion_matrix(
         self, normalize=True, zero_diag=False, size=300, color_scheme="viridis"
@@ -151,14 +162,11 @@ class SingleClassifier(LincsNN):
         )
 
 
-class AutoEncoder(LincsNN):
-    def __init__(self, dataset, normalize_by_gene=True, p1=0.2, p2=0.2):
-        self.target = "self"
+class AutoEncoder(BaseNetwork):
+    def __init__(self, dataset, **kwargs):
+        super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
         self.in_size = dataset.data.shape[1]
         self.out_size = dataset.data.shape[1]
-        if normalize_by_gene:
-            dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
@@ -190,12 +198,9 @@ class AutoEncoder(LincsNN):
 
 
 class MultiClassifier(SingleClassifier):
-    def __init__(self, dataset, targets, normalize_by_gene=True, p1=0.2, p2=0.2):
-        self.target = targets
+    def __init__(self, dataset, targets, **kwargs):
+        super(MultiClassifier, self).__init__(dataset=dataset, target=targets, **kwargs)
         self.in_size, self.out_size = self._get_in_out_size(dataset, targets)
-        if normalize_by_gene:
-            dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(
         self,
@@ -205,7 +210,6 @@ class MultiClassifier(SingleClassifier):
         optimizer="adam",
         final_activation="softmax",
     ):
-        model = Sequential()
         inputs = Input(shape=(self.in_size,))
 
         x = layers.Dropout(dropout_rate)(inputs)
@@ -248,13 +252,13 @@ class MultiClassifier(SingleClassifier):
         y_pred = self.predict()
 
         heatmaps = [
-            self._create_heatmap(d, p, normalize, zero_diag, size, color_scheme)
-            for d, p in zip(y_dummies, y_pred)
+            self._create_heatmap(d, p, normalize, zero_diag, size, color_scheme, title)
+            for d, p, title in zip(y_dummies, y_pred, self.target)
         ]
         return alt.hconcat(*heatmaps)
 
     def _create_heatmap(
-        self, y_dummies, y_pred, normalize, zero_diag, size, color_scheme
+        self, y_dummies, y_pred, normalize, zero_diag, size, color_scheme, title
     ):
         y_test = y_dummies.values
         classes = y_dummies.columns.values
@@ -272,18 +276,19 @@ class MultiClassifier(SingleClassifier):
         )
 
         base = alt.Chart(df).encode(
-            x=alt.X("index", title=None), y=alt.Y("variable", title=None)
+            x=alt.X("index:N", title="Predicted Label"),
+            y=alt.Y("variable:N", title="True Label"),
         )
 
         heatmap = base.mark_rect().encode(
-            color=alt.Color("value", scale=alt.Scale(scheme=color_scheme))
+            color=alt.Color("value:Q", scale=alt.Scale(scheme=color_scheme))
         )
 
         text = base.mark_text(size=size * 0.05).encode(
-            text=alt.Text("value", format=".2")
+            text=alt.Text("value:Q", format=".2")
         )
 
-        return (heatmap + text).properties(width=size, height=size)
+        return (heatmap + text).properties(width=size, height=size, title=title)
 
     def __repr__(self):
         return (
