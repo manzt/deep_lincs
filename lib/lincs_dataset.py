@@ -5,6 +5,10 @@ import altair as alt
 import os
 
 
+def _normalize_by_gene(X, y):
+    return X / tf.math.reduce_max(X, axis=0), y
+
+
 class LINCSDataset:
     def __init__(self, data_df, sample_meta_df, gene_meta_df):
         self.data = data_df
@@ -70,7 +74,14 @@ class LINCSDataset:
         test = LINCSDataset(X_test, y_test, self.gene_meta.copy())
         return train, val, test
 
-    def to_tf_dataset(self, target="self", shuffle=True, repeated=True, batch_size=32):
+    def to_tf_dataset(
+        self,
+        target="self",
+        shuffle=True,
+        repeated=True,
+        batch_size=32,
+        norm_batch_by_gene=True,
+    ):
         """Creates a tensorflow Dataset to be ingested by Keras."""
         data = self.data.copy()
         sample_meta = self.sample_meta.copy()
@@ -91,6 +102,9 @@ class LINCSDataset:
         if shuffle:
             dataset = dataset.shuffle(buffer_size=len(data))
         dataset = dataset.batch(batch_size)
+
+        if norm_batch_by_gene:
+            dataset = dataset.map(_normalize_by_gene)
         # `prefetch` lets the dataset fetch batches, in the background while the model is training.
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
         return dataset
