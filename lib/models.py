@@ -1,6 +1,7 @@
 import tensorflow as tf
-from tensorflow.keras import Sequential, Model, Input, layers
-from tensorflow.keras.metrics import Metric
+from tensorflow.keras import Sequential, Model, Input, layers, regularizers
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.metrics import Metric, CosineSimilarity
 from sklearn.metrics import confusion_matrix
 
 import pandas as pd
@@ -93,13 +94,13 @@ class SingleClassifier(BaseNetwork):
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
     ):
         model = Sequential()
-        model.add(layers.Dropout(dropout_rate, input_shape=(self.in_size,)))
+        model.add(Dropout(dropout_rate, input_shape=(self.in_size,)))
 
         for nunits in hidden_layers:
-            model.add(layers.Dense(nunits, activation=activation))
-            model.add(layers.Dropout(dropout_rate))
+            model.add(Dense(nunits, activation=activation))
+            model.add(Dropout(dropout_rate))
 
-        model.add(layers.Dense(self.out_size, activation="softmax"))
+        model.add(Dense(self.out_size, activation="softmax"))
 
         model.compile(
             optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
@@ -167,27 +168,56 @@ class AutoEncoder(BaseNetwork):
         super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
         self.in_size = dataset.data.shape[1]
         self.out_size = dataset.data.shape[1]
+        self._h_name = "hidden_embedding"
 
     def compile_model(
-        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
+        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam", l1_reg=None
     ):
-        model = Sequential()
-        model.add(layers.Dropout(dropout_rate, input_shape=(self.out_size,)))
+        hsize = self._get_hidden_size(hidden_layers)
+        inputs = Input(shape=(self.in_size,))
+        x = Dropout(dropout_rate)(inputs)
         for nunits in hidden_layers:
-            model.add(layers.Dense(nunits, activation=activation))
-            model.add(layers.Dropout(dropout_rate))
+            if nunits is hsize:
+                l1_reg = regularizers.l1(l1_reg) if l1_reg else None
+                x = Dense(
+                    nunits, 
+                    activation=activation, 
+                    activity_regularizer=l1_reg,
+                    name=self._h_name
+                )(x)
+            else:
+                x = Dense(nunits, activation=activation)(x)
+            x = Dropout(dropout_rate)(x)
 
-        model.add(layers.Dense(self.out_size, activation="relu"))
+        outputs = Dense(self.out_size, activation="relu")(x)
+        model = Model(inputs, outputs)
 
         model.compile(
             optimizer=optimizer,
             loss="mean_squared_error",
             metrics=[
-                tf.keras.metrics.CosineSimilarity(),
+                CosineSimilarity(),
                 PearsonsR(),  # custom correlation metric
             ],
         )
         self.model = model
+        
+    def _get_hidden_size(self, hidden_layers):
+        min_size = min(hidden_layers)
+        num_min = len([size for size in hidden_layers if size == min_size])
+        if num_min is not 1: 
+            raise ValueError(
+                f"Auto encoder does not contain bottleneck. "
+                f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
+            )
+        return min_size
+    
+    @property
+    def encoder(self):
+        return Model(
+            inputs=self.model.layers[0].input, 
+            outputs=self.model.get_layer(self._h_name).output
+        )
 
     def __repr__(self):
         return (
@@ -212,13 +242,13 @@ class MultiClassifier(SingleClassifier):
     ):
         inputs = Input(shape=(self.in_size,))
 
-        x = layers.Dropout(dropout_rate)(inputs)
+        x = Dropout(dropout_rate)(inputs)
         for nunits in hidden_layers:
-            x = layers.Dense(nunits, activation=activation)(x)
-            x = layers.Dropout(dropout_rate)(x)
+            x = Dense(nunits, activation=activation)(x)
+            x = Dropout(dropout_rate)(x)
 
         outputs = [
-            layers.Dense(size, activation=final_activation, name=name)(x)
+            Dense(size, activation=final_activation, name=name)(x)
             for name, size in self.target_info.items()
         ]
 
