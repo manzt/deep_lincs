@@ -89,7 +89,7 @@ class HiddenEmbedding:
         meta_col = self._dataset.sample_meta[meta_colname]
         cdict = create_cdict(meta_col)
         row_colors = meta_col.map(cdict)
-        sns.clustermap(self._h, row_colors=row_colors, z_score=0)
+        sns.clustermap(self._h, row_colors=row_colors, standard_scale=0)
 
     def plot_embedding(self, type_="PCA", color="cell_id"):
         TYPE = type_.upper()
