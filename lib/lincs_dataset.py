@@ -6,6 +6,7 @@ import os
 
 
 def _normalize_by_gene(X, y):
+    X = X - tf.math.reduce_min(X, axis=0)
     return X / tf.math.reduce_max(X, axis=0), y
 
 
