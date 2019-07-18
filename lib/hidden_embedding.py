@@ -85,27 +85,41 @@ class HiddenEmbedding:
                     ids[unit_name][item] = filtered.gene_symbol.to_list() # just gene names
         return ids
 
-    def plot_clustermap(self, meta_colname="cell_id"):
-        meta_col = self._dataset.sample_meta[meta_colname]
-        cdict = create_cdict(meta_col)
-        row_colors = meta_col.map(cdict)
-        sns.clustermap(self._h, row_colors=row_colors, standard_scale=0)
+    def plot_clustermap(self, meta_colnames="cell_id", only_active_units=True):
+        if not isinstance(meta_colnames, (list, tuple)):
+            meta_colnames = [meta_colnames]
+        row_colors = [self._meta_col_cmap(colname) for colname in meta_colnames]
+        embedding = self._h.loc[:,self._h.sum(0) > 0] if only_active_units else self._h
+        sns.clustermap(embedding, row_colors=row_colors, standard_scale=1)
+    
+    def _meta_col_cmap(self, colname):
+        meta_column = self._dataset.sample_meta[colname]
+        cdict = create_cdict(meta_column)
+        row_colors = meta_column.map(cdict)
+        return row_colors
 
-    def plot_embedding(self, type_="PCA", color="cell_id"):
+    def plot_embedding(self, type_="PCA", color=None, facet_row=None):
         TYPE = type_.upper()
         embedding = self._embed_hidden_output(TYPE)
         df = (
             pd.DataFrame(
                 embedding, columns=[f"{TYPE}_1", f"{TYPE}_2"], index=self._h.index
             )
-            .join(self._dataset.sample_meta[[color]])  # add metadata
+            .join(self._dataset.sample_meta)  # add metadata
             .reset_index()
         )
-        return (
+     
+        scatter = (
             alt.Chart(df)
             .mark_circle()
-            .encode(x=f"{TYPE}_1", y=f"{TYPE}_2", color=color, tooltip=["inst_id"])
+            .encode(x=f"{TYPE}_1", y=f"{TYPE}_2", tooltip=["inst_id"])
         )
+        if color:
+            scatter = scatter.encode(color=color)
+        if facet_row:
+            scatter = scatter.encode(row=facet_row)
+            
+        return scatter
 
     def plot_unit_counts(
         self, meta_field="cell_id", units=None, count_thresh=0, k_max=50
