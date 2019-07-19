@@ -23,11 +23,9 @@ MATPLOT_COLORS = [
     "tab:cyan",
 ]
 
-
 def create_cdict(meta_labels):
     labels = np.unique(meta_labels)
     return dict(zip(labels, MATPLOT_COLORS[: len(labels)]))
-
 
 def plot_embedding2D(embedding, meta_labels, alpha=0.5):
     cdict = create_cdict(meta_labels)
@@ -57,24 +55,23 @@ def plot_embedding3D(embedding, meta_labels, alpha=0.5):
     plt.show()
 
 
-def plot_scatter_matrix(file_path, size=75):
-    n_units, rep = [
-        int(val) for val in file_path.split("/")[-1].split(".")[0].split("_")
-    ]
-    data = pd.read_csv(file_path)
+def plot_scatter_matrix(
+    df, color_field, x_y_prefix, tooltip_fields, size
+):
+    repeated_facets = df.columns[df.columns.str.match(x_y_prefix)]
     scatter_matrix = (
-        alt.Chart(data)
+        alt.Chart(df)
         .mark_circle()
         .encode(
             alt.X(alt.repeat("column"), type="quantitative"),
             alt.Y(alt.repeat("row"), type="quantitative"),
-            color="cell_id:N",
-            tooltip=["inst_id", "pert_id", "pert_iname"],
+            color=f"{color_field}",
+            tooltip=tooltip_fields,
         )
         .properties(width=size, height=size)
         .repeat(
-            row=list(data.columns.values[-n_units::]),
-            column=list(data.columns.values[-n_units::][::-1]),
+            row=list(repeated_facets),
+            column=list(repeated_facets[::-1]),
         )
     )
     return scatter_matrix
@@ -134,14 +131,44 @@ def plot_embedding(hidden_output_df, meta_data_df, color="cell_id", type_="pca")
         .mark_circle()
         .encode(x=f"{type_}_1", y=f"{type_}_2", color=color, tooltip=["inst_id"])
     )
-
-
+    
 def plot_clustermap(data, meta_data, meta_colname):
     meta_col = meta_data[meta_colname]
     cdict = create_cdict(meta_col)
     row_colors = meta_col.map(cdict)
     sns.clustermap(data, row_colors=row_colors, z_score=0)
 
+def boxplot(df, x_field, y_field, extent):
+    plot = alt.Chart(df).mark_boxplot(extent=extent).encode(y=f"{y_field}:Q")
+    if x_field is not None:
+        plot = plot.encode(x=f"{x_field}:N")
+    return plot
 
+def scatter(df, x_field, y_field, color_field=None, tooltip_fields=None):
+    scatter = alt.Chart(df).mark_circle().encode(x=x_field, y=y_field)
+    if color_field:
+        scatter = scatter.encode(color=color_field)
+    if tooltip_fields:
+        scatter = scatter.encode(tooltip=tooltip_fields)
+    return scatter
+
+def barplot(df, x_field, y_field):
+    return alt.Chart(df).mark_bar().encode(x=alt.X(x_field, sort=None), y=y_field)
+
+def heatmap(df, x_field, y_field, value_field, color_scheme, has_text):
+    base = alt.Chart(df).encode(
+        x=f"{x_field}:N",
+        y=f"{y_field}:N"
+    )
+    
+    base += base.mark_rect().encode(
+        value_field, scale=alt.Scale(scheme=color_scheme)
+    )
+    if has_text:
+        base += base.mark_text().encode(
+            text=alt.Text(f"{value_field}:Q", format=".2")
+        )
+    return base
+    
 def get_file_info(file_path):
     return [int(s) for s in file_path.split("/")[-1].split(".")[0].split("_")]

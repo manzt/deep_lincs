@@ -5,13 +5,14 @@ import altair as alt
 import os
 
 from .tf_dataset_pipeline import prepare_tf_dataset
+from .plotting import boxplot, barplot
 
 
 class LINCSDataset:
     def __init__(self, data, gene_meta):
         self._data = data
         self.gene_meta = gene_meta
-        self._split_index = len(gene_meta.index.values)
+        self._split_index = len(gene_meta)
 
     @property
     def data(self):
@@ -73,61 +74,39 @@ class LINCSDataset:
         self.data.to_csv(fpaths[0], sep="\t")
         self.sample_meta.to_csv(fpaths[1], sep="\t")
 
-    def gene_boxplot(self, gene_id=None, gene_symbol=None, size=5000):
+    def gene_boxplot(self, gene_id=None, gene_symbol=None, meta_field=None, extent="min-max"):
         if gene_id is None and gene_symbol is None:
             raise ValueError("Must provide either gene_id or gene_symbol.")
-
         if gene_id is not None and gene_symbol is not None:
             raise ValueError(
                 "Cannot provide both gene_id and gene_symbol. Please use one."
             )
-
         if gene_id:
             gene_mask = self.gene_meta.index == int(gene_id)
         elif gene_symbol:
             gene_mask = self.gene_meta.gene_symbol == str(gene_symbol)
-
         gene_info = self.gene_meta[gene_mask]
-        if gene_info.shape[0] == 0:
+        if gene_info.shape[0] is 0:
             raise ValueError(
                 "Gene not found please make sure you have the correct id or symbol."
             )
-
-        df = (
-            self.data.loc[:, gene_info.index.astype(str)]
-            .join(self.sample_meta)
-            .sample(size)
-        )
-
-        return (
-            alt.Chart(df)
-            .mark_boxplot(extent="min-max")
-            .encode(
-                x="cell_id:N",
-                y=alt.Y(
-                    f"{gene_info.index[0]}:Q",
-                    title=f"{gene_info.pr_gene_symbol.values[0]}",
-                ),
-            )
-        )
+        gene_id = gene_info.index[0].astype(str)
+        gene_symbol = gene_info.gene_symbol.values[0]
+        df = self._data[[gene_id, *self.sample_meta.columns]]
+        df = df.rename(columns={gene_id: gene_symbol})
+        return boxplot(df=df, x_field=meta_field, y_field=gene_symbol, extent=extent)
 
     def plot_meta_counts(self, meta_field, normalize=True, sort_values=True):
-        count_values = self.sample_meta[meta_field].value_counts(normalize=normalize)
-        labels = count_values.index.values
-        freq = count_values.values
-        df = pd.DataFrame({meta_field: labels, "freq": freq})
-
-        return (
-            alt.Chart(df)
-            .mark_bar()
-            .encode(x=alt.X(meta_field, sort=None), y=alt.Y("freq", title=None))
-        )
+        counts = self.sample_meta[meta_field].value_counts(normalize=normalize)
+        colname = "counts" if normalize is False else "frequency"
+        df = pd.DataFrame({meta_field: counts.index.values, colname: counts.values})
+        return barplot(df=df, x_field=meta_field, y_field=colname)
 
     def copy(self):
         return LINCSDataset(self._data.copy(), self.gene_meta.copy())
 
     def __len__(self):
-        return self.data.shape[0]
+        return self._data.shape[0]
 
     def __repr__(self):
         nsamples, ngenes = self.data.shape
