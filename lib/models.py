@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
+
 class PearsonsR(Metric):
     def __init__(self, name="pearsons_corrcoef", **kwargs):
         super(PearsonsR, self).__init__(name=name, **kwargs)
@@ -40,13 +41,15 @@ class BaseNetwork:
         self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
         self._dataset_preprocessed = False
         self.model = None
-        
-    def prepare_tf_datasets(self, batch_size, norm_method="z_score", batch_normalize=False):
+
+    def prepare_tf_datasets(
+        self, batch_size, norm_method="z_score", batch_normalize=False
+    ):
         self._batch_size = batch_size
         self._norm_method = norm_method
         self.train_dset, self.val_dset, self.test_dset = [
-            lincs_dset(self.target, batch_size, norm_method, batch_normalize) for
-            lincs_dset in [self.train, self.val, self.test]
+            lincs_dset(self.target, batch_size, norm_method, batch_normalize)
+            for lincs_dset in [self.train, self.val, self.test]
         ]
         self._dataset_preprocessed = True
 
@@ -158,7 +161,7 @@ class SingleClassifier(BaseNetwork):
             f"input_size: {self.in_size}, "
             f"output_size: {self.out_size})>"
         )
-    
+
 
 class MultiClassifier(SingleClassifier):
     def __init__(self, dataset, targets, **kwargs):
@@ -261,7 +264,7 @@ class MultiClassifier(SingleClassifier):
             f"output_size: {self.out_size})>"
         )
 
-    
+
 class AutoEncoder(BaseNetwork):
     def __init__(self, dataset, **kwargs):
         super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
@@ -270,7 +273,12 @@ class AutoEncoder(BaseNetwork):
         self._h_name = "hidden_embedding"
 
     def compile_model(
-        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam", l1_reg=None
+        self,
+        hidden_layers,
+        dropout_rate=0.0,
+        activation="relu",
+        optimizer="adam",
+        l1_reg=None,
     ):
         hsize = AutoEncoder._get_hidden_size(hidden_layers)
         inputs = Input(shape=(self.in_size,))
@@ -279,15 +287,15 @@ class AutoEncoder(BaseNetwork):
             if nunits is hsize:
                 l1_reg = regularizers.l1(l1_reg) if l1_reg else None
                 x = Dense(
-                    nunits, 
-                    activation=activation, 
+                    nunits,
+                    activation=activation,
                     activity_regularizer=l1_reg,
-                    name=self._h_name
+                    name=self._h_name,
                 )(x)
             else:
                 x = Dense(nunits, activation=activation)(x)
             x = Dropout(dropout_rate)(x)
-            
+
         final_activation = "linear" if self._norm_method is "standard_scale" else "relu"
         outputs = Dense(self.out_size, activation=final_activation)(x)
         model = Model(inputs, outputs)
@@ -295,29 +303,26 @@ class AutoEncoder(BaseNetwork):
         model.compile(
             optimizer=optimizer,
             loss="mean_squared_error",
-            metrics=[
-                CosineSimilarity(),
-                PearsonsR(),  # custom correlation metric
-            ],
+            metrics=[CosineSimilarity(), PearsonsR()],  # custom correlation metric
         )
         self.model = model
-    
+
     @staticmethod
     def _get_hidden_size(hidden_layers):
         min_size = min(hidden_layers)
         num_min = len([size for size in hidden_layers if size == min_size])
-        if num_min is not 1: 
+        if num_min is not 1:
             raise ValueError(
                 f"Auto encoder does not contain bottleneck. "
                 f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
             )
         return min_size
-    
+
     @property
     def encoder(self):
         return Model(
-            inputs=self.model.layers[0].input, 
-            outputs=self.model.get_layer(self._h_name).output
+            inputs=self.model.layers[0].input,
+            outputs=self.model.get_layer(self._h_name).output,
         )
 
     def __repr__(self):

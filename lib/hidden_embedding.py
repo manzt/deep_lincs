@@ -77,21 +77,21 @@ class HiddenEmbedding:
                 ids[unit_name] = unit_activations.gene_symbol.to_list()
             else:
                 for item in unit_activations[by].unique():
-                    filtered = unit_activations.query(
-                        f"{by} == '{item}'"
-                    )
+                    filtered = unit_activations.query(f"{by} == '{item}'")
                     # show freq and gene_names
-                    # ids[unit_name][item] = list(zip(filtered.gene_symbol.to_list(), filtered.freq.to_list())) 
-                    ids[unit_name][item] = filtered.gene_symbol.to_list() # just gene names
+                    # ids[unit_name][item] = list(zip(filtered.gene_symbol.to_list(), filtered.freq.to_list()))
+                    ids[unit_name][
+                        item
+                    ] = filtered.gene_symbol.to_list()  # just gene names
         return ids
 
     def plot_clustermap(self, meta_colnames="cell_id", only_active_units=True):
         if not isinstance(meta_colnames, (list, tuple)):
             meta_colnames = [meta_colnames]
         row_colors = [self._meta_col_cmap(colname) for colname in meta_colnames]
-        embedding = self._h.loc[:,self._h.sum(0) > 0] if only_active_units else self._h
+        embedding = self._h.loc[:, self._h.sum(0) > 0] if only_active_units else self._h
         sns.clustermap(embedding, row_colors=row_colors, standard_scale=1)
-    
+
     def _meta_col_cmap(self, colname):
         meta_column = self._dataset.sample_meta[colname]
         cdict = create_cdict(meta_column)
@@ -108,7 +108,7 @@ class HiddenEmbedding:
             .join(self._dataset.sample_meta)  # add metadata
             .reset_index()
         )
-     
+
         scatter = (
             alt.Chart(df)
             .mark_circle()
@@ -118,7 +118,7 @@ class HiddenEmbedding:
             scatter = scatter.encode(color=color)
         if facet_row:
             scatter = scatter.encode(row=facet_row)
-            
+
         return scatter
 
     def plot_unit_counts(
@@ -131,7 +131,7 @@ class HiddenEmbedding:
             counts = counts.query(
                 "unit == " + " | unit == ".join([f"'unit_{i}'" for i in units])
             )
-        if len(counts) == 0: 
+        if len(counts) == 0:
             raise ValueError(
                 f"There are no genes (in the top-k of {k_max}) which "
                 f"exceed the count threshold of {count_thresh}. "
@@ -186,7 +186,7 @@ class HiddenEmbedding:
             embedding = self.embedders[embedding_type].fit_transform(self._h.values)
             self._embeddings[embedding_type] = embedding
         return embedding
-    
+
     def _create_barplot(self, counts_df, meta_field):
         return (
             alt.Chart(counts_df)
@@ -207,4 +207,3 @@ class HiddenEmbedding:
             .properties(height=50, width=850)
             .facet(row="unit")
         )
-        
