@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-
 class PearsonsR(Metric):
     def __init__(self, name="pearsons_corrcoef", **kwargs):
         super(PearsonsR, self).__init__(name=name, **kwargs)
@@ -36,50 +35,48 @@ class PearsonsR(Metric):
 
 
 class BaseNetwork:
-    def __init__(self, dataset, target, normalize_by_gene=True, p1=0.2, p2=0.2):
+    def __init__(self, dataset, target, p1=0.2, p2=0.2):
         self.target = target
-        self._normalize_by_gene = normalize_by_gene
         self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
+        self._dataset_preprocessed = False
+        self.model = None
+        
+    def prepare_tf_datasets(self, batch_size, norm_method="z_score", batch_normalize=False):
+        self._batch_size = batch_size
+        self._norm_method = norm_method
+        self.train_dset, self.val_dset, self.test_dset = [
+            lincs_dset(self.target, batch_size, norm_method, batch_normalize) for
+            lincs_dset in [self.train, self.val, self.test]
+        ]
+        self._dataset_preprocessed = True
 
     def compile_model(self):
         pass
 
-    def fit(self, epochs=5, batch_size=32, shuffle=True):
-        train_dset = self.train.to_tf_dataset(
-            target=self.target,
-            batch_size=batch_size,
-            norm_batch_by_gene=self._normalize_by_gene,
-        )
-        val_dset = self.val.to_tf_dataset(
-            target=self.target,
-            batch_size=batch_size,
-            norm_batch_by_gene=self._normalize_by_gene,
-            shuffle=False,
-            repeated=False,
-        )
+    def fit(self, epochs=5, shuffle=True):
+        if self._dataset_preprocessed is False:
+            raise ValueError(
+                f"Data has not been prepared for training. "
+                f"Run {self.__class__.__name__}.prepare_tf_datasets()."
+            )
+        if self.model is None:
+            raise ValueError(
+                f"Model has not been created. "
+                f"Run the {self.__class__.__name__}.compile_model() method before training."
+            )
         self.model.fit(
-            train_dset,
+            self.train_dset,
             epochs=epochs,
             shuffle=shuffle,
-            steps_per_epoch=len(self.train) // batch_size,
-            validation_data=val_dset,
+            steps_per_epoch=len(self.train) // self._batch_size,
+            validation_data=self.val_dset,
         )
 
     def evaluate(self):
-        test_dset = self.test.to_tf_dataset(
-            target=self.target,
-            norm_batch_by_gene=self._normalize_by_gene,
-            shuffle=False,
-            repeated=False,
-        )
-        return self.model.evaluate(test_dset)
+        return self.model.evaluate(self.test_dset)
 
     def predict(self):
-        test_data = self.test.data.copy()
-        if self._normalize_by_gene:
-            test_data = test_data / test_data.max(axis=0)
-        output = self.model.predict(test_data)
-        return output
+        return self.model.predict(self.test_dset)
 
     def summary(self):
         return self.model.summary()
@@ -161,71 +158,7 @@ class SingleClassifier(BaseNetwork):
             f"input_size: {self.in_size}, "
             f"output_size: {self.out_size})>"
         )
-
-
-class AutoEncoder(BaseNetwork):
-    def __init__(self, dataset, **kwargs):
-        super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
-        self.in_size = dataset.data.shape[1]
-        self.out_size = dataset.data.shape[1]
-        self._h_name = "hidden_embedding"
-
-    def compile_model(
-        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam", l1_reg=None
-    ):
-        hsize = self._get_hidden_size(hidden_layers)
-        inputs = Input(shape=(self.in_size,))
-        x = Dropout(dropout_rate)(inputs)
-        for nunits in hidden_layers:
-            if nunits is hsize:
-                l1_reg = regularizers.l1(l1_reg) if l1_reg else None
-                x = Dense(
-                    nunits, 
-                    activation=activation, 
-                    activity_regularizer=l1_reg,
-                    name=self._h_name
-                )(x)
-            else:
-                x = Dense(nunits, activation=activation)(x)
-            x = Dropout(dropout_rate)(x)
-
-        outputs = Dense(self.out_size, activation="relu")(x)
-        model = Model(inputs, outputs)
-
-        model.compile(
-            optimizer=optimizer,
-            loss="mean_squared_error",
-            metrics=[
-                CosineSimilarity(),
-                PearsonsR(),  # custom correlation metric
-            ],
-        )
-        self.model = model
-        
-    def _get_hidden_size(self, hidden_layers):
-        min_size = min(hidden_layers)
-        num_min = len([size for size in hidden_layers if size == min_size])
-        if num_min is not 1: 
-            raise ValueError(
-                f"Auto encoder does not contain bottleneck. "
-                f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
-            )
-        return min_size
     
-    @property
-    def encoder(self):
-        return Model(
-            inputs=self.model.layers[0].input, 
-            outputs=self.model.get_layer(self._h_name).output
-        )
-
-    def __repr__(self):
-        return (
-            f"<AutoEncoder: "
-            f"(input_size: {self.in_size}, "
-            f"output_size: {self.out_size})>"
-        )
-
 
 class MultiClassifier(SingleClassifier):
     def __init__(self, dataset, targets, **kwargs):
@@ -325,5 +258,71 @@ class MultiClassifier(SingleClassifier):
             f"<MultiClassifier: "
             f"(targets: {self.target}, "
             f"input_size: {self.in_size}, "
+            f"output_size: {self.out_size})>"
+        )
+
+    
+class AutoEncoder(BaseNetwork):
+    def __init__(self, dataset, **kwargs):
+        super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
+        self.in_size = dataset.data.shape[1]
+        self.out_size = dataset.data.shape[1]
+        self._h_name = "hidden_embedding"
+
+    def compile_model(
+        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam", l1_reg=None
+    ):
+        hsize = AutoEncoder._get_hidden_size(hidden_layers)
+        inputs = Input(shape=(self.in_size,))
+        x = Dropout(dropout_rate)(inputs)
+        for nunits in hidden_layers:
+            if nunits is hsize:
+                l1_reg = regularizers.l1(l1_reg) if l1_reg else None
+                x = Dense(
+                    nunits, 
+                    activation=activation, 
+                    activity_regularizer=l1_reg,
+                    name=self._h_name
+                )(x)
+            else:
+                x = Dense(nunits, activation=activation)(x)
+            x = Dropout(dropout_rate)(x)
+            
+        final_activation = "linear" if self._norm_method is "standard_scale" else "relu"
+        outputs = Dense(self.out_size, activation=final_activation)(x)
+        model = Model(inputs, outputs)
+
+        model.compile(
+            optimizer=optimizer,
+            loss="mean_squared_error",
+            metrics=[
+                CosineSimilarity(),
+                PearsonsR(),  # custom correlation metric
+            ],
+        )
+        self.model = model
+    
+    @staticmethod
+    def _get_hidden_size(hidden_layers):
+        min_size = min(hidden_layers)
+        num_min = len([size for size in hidden_layers if size == min_size])
+        if num_min is not 1: 
+            raise ValueError(
+                f"Auto encoder does not contain bottleneck. "
+                f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
+            )
+        return min_size
+    
+    @property
+    def encoder(self):
+        return Model(
+            inputs=self.model.layers[0].input, 
+            outputs=self.model.get_layer(self._h_name).output
+        )
+
+    def __repr__(self):
+        return (
+            f"<AutoEncoder: "
+            f"(input_size: {self.in_size}, "
             f"output_size: {self.out_size})>"
         )
