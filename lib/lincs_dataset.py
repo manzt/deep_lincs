@@ -4,12 +4,8 @@ import pandas as pd
 import altair as alt
 import os
 
-
-def _normalize_by_gene(X, y):
-    X = X - tf.math.reduce_min(X, axis=0)
-    return X / tf.math.reduce_max(X, axis=0), y
-
-
+from .tf_dataset_pipeline import prepare_tf_dataset
+    
 class LINCSDataset:
     def __init__(self, data_df, sample_meta_df, gene_meta_df):
         self.data = data_df
@@ -17,7 +13,7 @@ class LINCSDataset:
         self.gene_meta = gene_meta_df
         self.pert_types = sample_meta_df.pert_type.unique()
         self.cell_ids = sample_meta_df.cell_id.unique()
-
+    
     def sample_rows(self, size=100, meta_groups=None):
         sample_meta_subset = (
             self.sample_meta.sample(size)
@@ -57,58 +53,17 @@ class LINCSDataset:
             self.sample_meta.dropna(subset=subset, inplace=True)
             self.data = self.data[self.data.index.isin(self.sample_meta.index)]
 
-    def normalize_by_gene(self):
-        # TODO: requires train_val_test_split to be called after
-        # TODO: implement this normalization per batch during training
-        self.data = self.data / self.data.max(axis=0)
-
     def train_val_test_split(self, p1=0.2, p2=0.2):
-        # TODO: must be called after normalization.
         X_train, X_test, y_train, y_test = train_test_split(
             self.data, self.sample_meta, test_size=p1
         )
         X_train, X_val, y_train, y_val = train_test_split(
             X_train, y_train, test_size=p2
         )
-        train = LINCSDataset(X_train, y_train, self.gene_meta.copy())
-        val = LINCSDataset(X_val, y_val, self.gene_meta.copy())
-        test = LINCSDataset(X_test, y_test, self.gene_meta.copy())
+        train = LINCSKerasDataset(X_train, y_train, self.gene_meta.copy(), "train")
+        val = LINCSKerasDataset(X_val, y_val, self.gene_meta.copy(), "validation")
+        test = LINCSKerasDataset(X_test, y_test, self.gene_meta.copy(), "test")
         return train, val, test
-
-    def to_tf_dataset(
-        self,
-        target="self",
-        shuffle=True,
-        repeated=True,
-        batch_size=32,
-        norm_batch_by_gene=True,
-    ):
-        """Creates a tensorflow Dataset to be ingested by Keras."""
-        data = self.data.copy()
-        sample_meta = self.sample_meta.copy()
-
-        if target == "self":
-            y = data.values
-        elif type(target) == str:
-            y = pd.get_dummies(sample_meta[target]).values
-        elif type(target) == list:
-            y = tuple(pd.get_dummies(sample_meta[t]).values for t in target)
-
-        X = tf.data.Dataset.from_tensor_slices(data.values)
-        y = tf.data.Dataset.from_tensor_slices(y)
-        dataset = tf.data.Dataset.zip((X, y))
-
-        if repeated:
-            dataset = dataset.repeat()
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=len(data))
-        dataset = dataset.batch(batch_size)
-
-        if norm_batch_by_gene:
-            dataset = dataset.map(_normalize_by_gene)
-        # `prefetch` lets the dataset fetch batches, in the background while the model is training.
-        dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-        return dataset
 
     def to_tsv(self, out_dir, name=None):
         if name is not None:
@@ -179,3 +134,42 @@ class LINCSDataset:
     def __repr__(self):
         nsamples, ngenes = self.data.shape
         return f"<LINCS Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
+    
+
+class LINCSKerasDataset(LINCSDataset):
+    _valid_names = ["train", "validation", "test"] 
+    def __init__(self, data_df, sample_meta_df, gene_meta_df, name, **kwargs):
+        super(LINCSKerasDataset, self).__init__(data_df=data_df, sample_meta_df=sample_meta_df, gene_meta_df=gene_meta_df,**kwargs)
+        self.name = name 
+        if name not in self._valid_names:
+            raise ValueError(f"LINCSKerasDataset 'name' must be one of {self._valid_names}, not '{name}'.")
+        self.shuffle, self.repeat = (True, True) if name is "train" else (False, False)
+        
+    def __call__(self, target, batch_size=64, norm_method="z_score", batch_normalize=False):
+        """Converts dataset to tf.data.Dataset to be ingested by Keras."""
+        X = tf.data.Dataset.from_tensor_slices(self.data.values)
+        y = self._get_target_as_tf_dataset(target)
+        tf_dataset = prepare_tf_dataset(
+            dataset=tf.data.Dataset.zip((X, y)),
+            batch_size=batch_size,
+            shuffle=self.shuffle,
+            repeat=self.repeat,
+            norm_method=norm_method,
+            batch_normalize=batch_normalize,
+            shuffle_buffer_size=self.data.shape[0]
+        )
+        return tf_dataset
+    
+    def _get_target_as_tf_dataset(self, target):
+        if target == "self":
+            y = self.data.values
+        elif type(target) == str:
+            y = pd.get_dummies(self.sample_meta[target]).values
+        elif type(target) == list:
+            y = tuple(pd.get_dummies(self.sample_meta[t]).values for t in target)
+        y_tf_dataset = tf.data.Dataset.from_tensor_slices(y)
+        return y_tf_dataset
+    
+    def __repr__(self):
+        nsamples, ngenes = self.data.shape
+        return f"<LINCS {self.name} Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
