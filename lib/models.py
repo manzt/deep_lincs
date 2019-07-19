@@ -1,12 +1,12 @@
 import tensorflow as tf
-from tensorflow.keras import Sequential, Model, Input, layers
-from tensorflow.keras.metrics import Metric
+from tensorflow.keras import Sequential, Model, Input, layers, regularizers
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.metrics import Metric, CosineSimilarity
 from sklearn.metrics import confusion_matrix
 
 import pandas as pd
 import numpy as np
 import altair as alt
-
 
 class PearsonsR(Metric):
     def __init__(self, name="pearsons_corrcoef", **kwargs):
@@ -34,66 +34,75 @@ class PearsonsR(Metric):
         self.corrcoef.assign(0.0)
 
 
-class LincsNN:
-    def __init__(self):
-        pass
+class BaseNetwork:
+    def __init__(self, dataset, target, p1=0.2, p2=0.2):
+        self.target = target
+        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
+        self._dataset_preprocessed = False
+        self.model = None
+        
+    def prepare_tf_datasets(self, batch_size, norm_method="z_score", batch_normalize=False):
+        self._batch_size = batch_size
+        self._norm_method = norm_method
+        self.train_dset, self.val_dset, self.test_dset = [
+            lincs_dset(self.target, batch_size, norm_method, batch_normalize) for
+            lincs_dset in [self.train, self.val, self.test]
+        ]
+        self._dataset_preprocessed = True
 
     def compile_model(self):
         pass
 
-    def fit(self, epochs=5, batch_size=32, shuffle=True):
+    def fit(self, epochs=5, shuffle=True):
+        if self._dataset_preprocessed is False:
+            raise ValueError(
+                f"Data has not been prepared for training. "
+                f"Run {self.__class__.__name__}.prepare_tf_datasets()."
+            )
+        if self.model is None:
+            raise ValueError(
+                f"Model has not been created. "
+                f"Run the {self.__class__.__name__}.compile_model() method before training."
+            )
         self.model.fit(
-            self.train.to_tf_dataset(target=self.target, batch_size=batch_size),
+            self.train_dset,
             epochs=epochs,
             shuffle=shuffle,
-            steps_per_epoch=len(self.train) // batch_size,
-            validation_data=self.val.to_tf_dataset(
-                target=self.target, batch_size=batch_size, shuffle=False, repeated=False
-            ),
+            steps_per_epoch=len(self.train) // self._batch_size,
+            validation_data=self.val_dset,
         )
 
-    def evaluate(self, batch_size=32):
-        return self.model.evaluate(
-            self.val.to_tf_dataset(
-                target=self.target, batch_size=batch_size, shuffle=False, repeated=False
-            )
-        )
+    def evaluate(self):
+        return self.model.evaluate(self.test_dset)
+
+    def predict(self):
+        return self.model.predict(self.test_dset)
 
     def summary(self):
         return self.model.summary()
 
 
-class SingleClassifier(LincsNN):
-    def __init__(self, dataset, target, normalize_by_gene=True, p1=0.2, p2=0.2):
-        self.target = target
+class SingleClassifier(BaseNetwork):
+    def __init__(self, dataset, target, **kwargs):
+        super(SingleClassifier, self).__init__(dataset=dataset, target=target, **kwargs)
         self.in_size, self.out_size = self._get_in_out_size(dataset, target)
-        if normalize_by_gene:
-            dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(
         self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
     ):
         model = Sequential()
-        model.add(layers.Dropout(dropout_rate, input_shape=(self.in_size,)))
+        model.add(Dropout(dropout_rate, input_shape=(self.in_size,)))
 
         for nunits in hidden_layers:
-            model.add(layers.Dense(nunits, activation=activation))
-            model.add(layers.Dropout(dropout_rate))
+            model.add(Dense(nunits, activation=activation))
+            model.add(Dropout(dropout_rate))
 
-        model.add(layers.Dense(self.out_size, activation="softmax"))
+        model.add(Dense(self.out_size, activation="softmax"))
 
         model.compile(
             optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
         )
         self.model = model
-
-    def predict(self, as_df=False):
-        output = self.model.predict(self.test.data)
-        if as_df:
-            colnames = [f"unit_{i}" for i in range(self.out_size)]
-            output = pd.DataFrame(output, columns=colnames, index=self.test.data.index)
-        return output
 
     def plot_confusion_matrix(
         self, normalize=True, zero_diag=False, size=300, color_scheme="viridis"
@@ -149,53 +158,12 @@ class SingleClassifier(LincsNN):
             f"input_size: {self.in_size}, "
             f"output_size: {self.out_size})>"
         )
-
-
-class AutoEncoder(LincsNN):
-    def __init__(self, dataset, normalize_by_gene=True, p1=0.2, p2=0.2):
-        self.target = "self"
-        self.in_size = dataset.data.shape[1]
-        self.out_size = dataset.data.shape[1]
-        if normalize_by_gene:
-            dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
-
-    def compile_model(
-        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam"
-    ):
-        model = Sequential()
-        model.add(layers.Dropout(dropout_rate, input_shape=(self.out_size,)))
-        for nunits in hidden_layers:
-            model.add(layers.Dense(nunits, activation=activation))
-            model.add(layers.Dropout(dropout_rate))
-
-        model.add(layers.Dense(self.out_size, activation="relu"))
-
-        model.compile(
-            optimizer=optimizer,
-            loss="mean_squared_error",
-            metrics=[
-                tf.keras.metrics.CosineSimilarity(),
-                PearsonsR(),  # custom correlation metric
-            ],
-        )
-        self.model = model
-
-    def __repr__(self):
-        return (
-            f"<AutoEncoder: "
-            f"(input_size: {self.in_size}, "
-            f"output_size: {self.out_size})>"
-        )
-
+    
 
 class MultiClassifier(SingleClassifier):
-    def __init__(self, dataset, targets, normalize_by_gene=True, p1=0.2, p2=0.2):
-        self.target = targets
+    def __init__(self, dataset, targets, **kwargs):
+        super(MultiClassifier, self).__init__(dataset=dataset, target=targets, **kwargs)
         self.in_size, self.out_size = self._get_in_out_size(dataset, targets)
-        if normalize_by_gene:
-            dataset.normalize_by_gene()
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
 
     def compile_model(
         self,
@@ -205,16 +173,15 @@ class MultiClassifier(SingleClassifier):
         optimizer="adam",
         final_activation="softmax",
     ):
-        model = Sequential()
         inputs = Input(shape=(self.in_size,))
 
-        x = layers.Dropout(dropout_rate)(inputs)
+        x = Dropout(dropout_rate)(inputs)
         for nunits in hidden_layers:
-            x = layers.Dense(nunits, activation=activation)(x)
-            x = layers.Dropout(dropout_rate)(x)
+            x = Dense(nunits, activation=activation)(x)
+            x = Dropout(dropout_rate)(x)
 
         outputs = [
-            layers.Dense(size, activation=final_activation, name=name)(x)
+            Dense(size, activation=final_activation, name=name)(x)
             for name, size in self.target_info.items()
         ]
 
@@ -248,13 +215,13 @@ class MultiClassifier(SingleClassifier):
         y_pred = self.predict()
 
         heatmaps = [
-            self._create_heatmap(d, p, normalize, zero_diag, size, color_scheme)
-            for d, p in zip(y_dummies, y_pred)
+            self._create_heatmap(d, p, normalize, zero_diag, size, color_scheme, title)
+            for d, p, title in zip(y_dummies, y_pred, self.target)
         ]
         return alt.hconcat(*heatmaps)
 
     def _create_heatmap(
-        self, y_dummies, y_pred, normalize, zero_diag, size, color_scheme
+        self, y_dummies, y_pred, normalize, zero_diag, size, color_scheme, title
     ):
         y_test = y_dummies.values
         classes = y_dummies.columns.values
@@ -272,23 +239,90 @@ class MultiClassifier(SingleClassifier):
         )
 
         base = alt.Chart(df).encode(
-            x=alt.X("index", title=None), y=alt.Y("variable", title=None)
+            x=alt.X("index:N", title="Predicted Label"),
+            y=alt.Y("variable:N", title="True Label"),
         )
 
         heatmap = base.mark_rect().encode(
-            color=alt.Color("value", scale=alt.Scale(scheme=color_scheme))
+            color=alt.Color("value:Q", scale=alt.Scale(scheme=color_scheme))
         )
 
         text = base.mark_text(size=size * 0.05).encode(
-            text=alt.Text("value", format=".2")
+            text=alt.Text("value:Q", format=".2")
         )
 
-        return (heatmap + text).properties(width=size, height=size)
+        return (heatmap + text).properties(width=size, height=size, title=title)
 
     def __repr__(self):
         return (
             f"<MultiClassifier: "
             f"(targets: {self.target}, "
             f"input_size: {self.in_size}, "
+            f"output_size: {self.out_size})>"
+        )
+
+    
+class AutoEncoder(BaseNetwork):
+    def __init__(self, dataset, **kwargs):
+        super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
+        self.in_size = dataset.data.shape[1]
+        self.out_size = dataset.data.shape[1]
+        self._h_name = "hidden_embedding"
+
+    def compile_model(
+        self, hidden_layers, dropout_rate=0.0, activation="relu", optimizer="adam", l1_reg=None
+    ):
+        hsize = AutoEncoder._get_hidden_size(hidden_layers)
+        inputs = Input(shape=(self.in_size,))
+        x = Dropout(dropout_rate)(inputs)
+        for nunits in hidden_layers:
+            if nunits is hsize:
+                l1_reg = regularizers.l1(l1_reg) if l1_reg else None
+                x = Dense(
+                    nunits, 
+                    activation=activation, 
+                    activity_regularizer=l1_reg,
+                    name=self._h_name
+                )(x)
+            else:
+                x = Dense(nunits, activation=activation)(x)
+            x = Dropout(dropout_rate)(x)
+            
+        final_activation = "linear" if self._norm_method is "standard_scale" else "relu"
+        outputs = Dense(self.out_size, activation=final_activation)(x)
+        model = Model(inputs, outputs)
+
+        model.compile(
+            optimizer=optimizer,
+            loss="mean_squared_error",
+            metrics=[
+                CosineSimilarity(),
+                PearsonsR(),  # custom correlation metric
+            ],
+        )
+        self.model = model
+    
+    @staticmethod
+    def _get_hidden_size(hidden_layers):
+        min_size = min(hidden_layers)
+        num_min = len([size for size in hidden_layers if size == min_size])
+        if num_min is not 1: 
+            raise ValueError(
+                f"Auto encoder does not contain bottleneck. "
+                f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
+            )
+        return min_size
+    
+    @property
+    def encoder(self):
+        return Model(
+            inputs=self.model.layers[0].input, 
+            outputs=self.model.get_layer(self._h_name).output
+        )
+
+    def __repr__(self):
+        return (
+            f"<AutoEncoder: "
+            f"(input_size: {self.in_size}, "
             f"output_size: {self.out_size})>"
         )
