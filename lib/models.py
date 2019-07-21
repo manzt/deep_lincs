@@ -148,7 +148,7 @@ class SingleClassifier(BaseNetwork):
             raise Exception(
                 f"Dataset contains np.nan entry in '{target}'. "
                 f"You can drop these samples to train the "
-                f"classifier with LINCSDataset.drop_na('{target}')."
+                f"classifier with Dataset.drop_na('{target}')."
             )
         in_size = dataset.data.shape[1]
         out_size = len(unique_targets)
@@ -204,7 +204,7 @@ class MultiClassifier(SingleClassifier):
                 raise Exception(
                     f"Dataset contains np.nan entry in '{target}'. "
                     f"You can drop these samples to train the "
-                    f"classifier with LINCSDataset.drop_na('{target}')."
+                    f"classifier with Dataset.drop_na('{target}')."
                 )
             self.target_info[target] = len(unique_targets)
         in_size = dataset.data.shape[1]

@@ -8,7 +8,7 @@ from .tf_dataset_pipeline import prepare_tf_dataset
 from .plotting import boxplot, barplot
 
 
-class LINCSDataset:
+class Dataset:
     def __init__(self, data, gene_meta):
         self._data = data
         self.gene_meta = gene_meta
@@ -33,34 +33,34 @@ class LINCSDataset:
             if meta_groups is None
             else self._data.sample(frac=1).groupby(meta_groups).head(size)
         )
-        return LINCSDataset(subset, self.gene_meta.copy())
+        return Dataset(subset, self.gene_meta.copy())
 
     def filter_rows(self, **kwargs):
         filtered = self._data.copy()
         for colname, values in kwargs.items():
             values = [values] if type(values) == str else values
             filtered = filtered[filtered[colname].isin(values)]
-        return LINCSDataset(filtered, self.gene_meta.copy())
+        return Dataset(filtered, self.gene_meta.copy())
 
     def lookup_samples(self, sample_ids):
         mask = self._data.isin(sample_ids)
-        return LINCSDataset(self._data[mask], self.gene_meta.copy())
+        return Dataset(self._data[mask], self.gene_meta.copy())
 
     def dropna(self, subset, inplace=False):
         if type(subset) is str:
             subset = [subset]
         if not inplace:
             filtered = self._data.dropna(subset=subset)
-            return LINCSDataset(filtered, self.gene_meta.copy())
+            return Dataset(filtered, self.gene_meta.copy())
         else:
             self._data.dropna(subset=subset, inplace=True)
 
     def train_val_test_split(self, p1=0.2, p2=0.2):
         X_train, X_test = train_test_split(self._data, test_size=p1)
         X_train, X_val = train_test_split(X_train, test_size=p2)
-        train = LINCSKerasDataset(X_train, self.gene_meta.copy(), "train")
-        val = LINCSKerasDataset(X_val, self.gene_meta.copy(), "validation")
-        test = LINCSKerasDataset(X_test, self.gene_meta.copy(), "test")
+        train = KerasDataset(X_train, self.gene_meta.copy(), "train")
+        val = KerasDataset(X_val, self.gene_meta.copy(), "validation")
+        test = KerasDataset(X_test, self.gene_meta.copy(), "test")
         return train, val, test
 
     def to_tsv(self, out_dir, prefix=None):
@@ -68,13 +68,19 @@ class LINCSDataset:
         os.makedirs(out_dir, exist_ok=True)
         prefix = f"{prefix}_" if prefix else ""
         fpaths = [
-            os.path.join(out_dir, f"{prefix}{suf}.tsv") 
+            os.path.join(out_dir, f"{prefix}{suf}.tsv")
             for suf in ["data", "sample_meta"]
         ]
         self.data.to_csv(fpaths[0], sep="\t")
         self.sample_meta.to_csv(fpaths[1], sep="\t")
 
-    def gene_boxplot(self, gene_id=None, gene_symbol=None, meta_field=None, extent="min-max"):
+    def one_hot_encode(self, meta_field):
+        one_hot_df = pd.get_dummies(self.sample_meta[meta_field])
+        return one_hot_df.values
+
+    def gene_boxplot(
+        self, gene_id=None, gene_symbol=None, meta_field=None, extent="min-max"
+    ):
         if gene_id is None and gene_symbol is None:
             raise ValueError("Must provide either gene_id or gene_symbol.")
         if gene_id is not None and gene_symbol is not None:
@@ -103,27 +109,29 @@ class LINCSDataset:
         return barplot(df=df, x_field=meta_field, y_field=colname)
 
     def copy(self):
-        return LINCSDataset(self._data.copy(), self.gene_meta.copy())
+        return Dataset(self._data.copy(), self.gene_meta.copy())
 
     def __len__(self):
         return self._data.shape[0]
 
     def __repr__(self):
         nsamples, ngenes = self.data.shape
-        return f"<LINCS Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
+        return f"<L1000 Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
 
 
-class LINCSKerasDataset(LINCSDataset):
+class KerasDataset(Dataset):
     _valid_names = ["train", "validation", "test"]
 
     def __init__(self, data, gene_meta, name, **kwargs):
-        super(LINCSKerasDataset, self).__init__(data, gene_meta, **kwargs)
+        super(KerasDataset, self).__init__(data, gene_meta, **kwargs)
         self.name = name
         if name not in self._valid_names:
             raise ValueError(
                 f"LINCSKerasDataset 'name' must be one of {self._valid_names}, not '{name}'."
             )
-        self.shuffle, self.repeat = (True, True) if name is "train" else (False, False)
+        self.shuffle, self.repeat = (
+            (False, False) if name is "train" else (False, False)
+        )
 
     def __call__(
         self, target, batch_size=64, norm_method="z_score", batch_normalize=False
@@ -146,14 +154,12 @@ class LINCSKerasDataset(LINCSDataset):
         if target == "self":
             y = self.data.values
         elif type(target) == str:
-            y = pd.get_dummies(self.sample_meta[target]).values
+            y = self.one_hot_encode(target)
         elif type(target) == list:
-            y = tuple(pd.get_dummies(self.sample_meta[t]).values for t in target)
+            y = tuple(self.one_hot_encode(t) for t in target)
         y_tf_dataset = tf.data.Dataset.from_tensor_slices(y)
         return y_tf_dataset
 
     def __repr__(self):
         nsamples, ngenes = self.data.shape
-        return (
-            f"<LINCS {self.name} Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
-        )
+        return f"< {self.name} Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
