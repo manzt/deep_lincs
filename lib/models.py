@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
+from .hidden_embedding import HiddenEmbedding
+
 
 class PearsonsR(Metric):
     def __init__(self, name="pearsons_corrcoef", **kwargs):
@@ -315,7 +317,13 @@ class AutoEncoder(BaseNetwork):
                 f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
             )
         return min_size
-
+    
+    def get_hidden_embedding(self, lincs_dset=None):
+        if lincs_dset is None:
+            return HiddenEmbedding(self.test, self.encoder)
+        else:
+            return HiddenEmbedding(lincs_dset, self.encoder)
+        
     @property
     def encoder(self):
         return Model(
