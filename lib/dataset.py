@@ -1,6 +1,7 @@
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import numpy as np
 import altair as alt
 import os
 
@@ -10,62 +11,96 @@ from .plotting import boxplot, barplot
 
 
 class Dataset:
-    def __init__(self, data, gene_meta):
+    def __init__(self, data, gene_meta, n_genes=978):
         self._data = data
         self.gene_meta = gene_meta
-        self._split_index = len(gene_meta)
+        self.n_genes = n_genes
+        
+    def __call__(self, data):
+        return Dataset(data, self.gene_meta.copy(), self.n_genes)
 
     @property
     def data(self):
-        return self._data.iloc[:, : self._split_index]
+        return self._data.iloc[:, : self.n_genes]
 
     @property
     def sample_meta(self):
-        return self._data.iloc[:, self._split_index :]
+        return self._data.iloc[:, self.n_genes :]
 
     @classmethod
     def from_dataframes(cls, data_df, sample_meta_df, gene_meta_df):
         data = data_df.join(sample_meta_df)
-        return cls(data, gene_meta_df)
+        return cls(data, gene_meta_df, len(gene_meta_df))
+    
+    def _copy(self, data):
+        return Dataset(data, self.gene_meta.copy(), self.n_genes)
 
-    def sample_rows(self, size=100, meta_groups=None):
-        subset = (
-            self._data.sample(size)
+    def sample_rows(self, size=100, replace=False, meta_groups=None):
+        sampled = (
+            self._data.sample(size, replace=replace)
             if meta_groups is None
-            else self._data.sample(frac=1).groupby(meta_groups).head(size)
+            else self._data.sample(frac=1, replace=replace).groupby(meta_groups).head(size)
         )
-        return Dataset(subset, self.gene_meta.copy())
+        return self._copy(sampled)
+    
+    def set_col_prefix(self, prefix):
+        data = self._data.add_prefix(prefix)
+        return self._copy(data)
 
     def filter_rows(self, **kwargs):
         filtered = self._data.copy()
         for colname, values in kwargs.items():
             values = [values] if type(values) == str else values
             filtered = filtered[filtered[colname].isin(values)]
-        return Dataset(filtered, self.gene_meta.copy())
+        return self._copy(filtered)
+    
+    def select_meta(self, meta_fields):
+        selected = self._data[[*self.data.columns.values, *meta_fields]]
+        return self._copy(selected)
 
     def lookup_samples(self, sample_ids):
+        """Returns new dataset with subset of fields."""
         mask = self._data.isin(sample_ids)
-        return Dataset(self._data[mask], self.gene_meta.copy())
-
+        return self._copy(self._data[mask])
+    
+    def split(self, **kwargs):
+        if len(kwargs.keys()) != 1:
+            raise ValueError('One keyword argument is required: Key must be a meta_data field.') 
+        data = self._data.copy()
+        for colname, values in kwargs.items():
+            mask = data[colname].isin(values)
+            return self._copy(data[mask]), self._copy(data[~mask])
+        
+    def merge(self, lincs_dataset, r_prefix="ctl_"):
+        data = self._merge_right(self.data, lincs_dataset.data, r_prefix) 
+        sample_meta = self._merge_right(self.sample_meta, lincs_dataset.sample_meta, r_prefix)
+        merged = data.join(sample_meta.drop("inst_id", axis=1)).set_index("inst_id")
+        return Dataset(merged, self.gene_meta.copy(), data.shape[1]-1)
+    
+    def _merge_right(self, df1, df2, r_prefix):
+        df2 = df2.add_prefix(r_prefix).reset_index().drop("inst_id", axis=1)
+        merged = df1.reset_index().join(df2)
+        return merged
+        
     def dropna(self, subset, inplace=False):
         if type(subset) is str:
             subset = [subset]
         if not inplace:
             filtered = self._data.dropna(subset=subset)
-            return Dataset(filtered, self.gene_meta.copy())
+            return self._copy(filtered)
         else:
             self._data.dropna(subset=subset, inplace=True)
 
     def normalize_by_gene(self, normalizer):
         normalizer = get_norm_method(normalizer)
-        self._data.iloc[:, : self._split_index] = normalizer(self.data)
+        self._data.iloc[:, : self.n_genes] = normalizer(self.data)
 
     def train_val_test_split(self, p1=0.2, p2=0.2):
         X_train, X_test = train_test_split(self._data, test_size=p1)
         X_train, X_val = train_test_split(X_train, test_size=p2)
-        train = KerasDataset(X_train, self.gene_meta.copy(), "train")
-        val = KerasDataset(X_val, self.gene_meta.copy(), "validation")
-        test = KerasDataset(X_test, self.gene_meta.copy(), "test")
+        train = KerasDataset(X_train, self.gene_meta.copy(), self.n_genes, "train")
+        val = KerasDataset(X_val, self.gene_meta.copy(), self.n_genes, "validation")
+        test = KerasDataset(X_test, self.gene_meta.copy(), self.n_genes, "test")
         return train, val, test
 
     def to_tsv(self, out_dir, prefix=None):
@@ -114,7 +149,7 @@ class Dataset:
         return barplot(df=df, x_field=meta_field, y_field=colname)
 
     def copy(self):
-        return Dataset(self._data.copy(), self.gene_meta.copy())
+        return Dataset(self._data.copy(), self.gene_meta.copy(), self.n_genes)
 
     def __len__(self):
         return self._data.shape[0]
@@ -127,8 +162,8 @@ class Dataset:
 class KerasDataset(Dataset):
     _valid_names = ["train", "validation", "test"]
 
-    def __init__(self, data, gene_meta, name, **kwargs):
-        super(KerasDataset, self).__init__(data, gene_meta, **kwargs)
+    def __init__(self, data, gene_meta, n_genes, name, **kwargs):
+        super(KerasDataset, self).__init__(data, gene_meta, n_genes, **kwargs)
         self.name = name
         if name not in self._valid_names:
             raise ValueError(

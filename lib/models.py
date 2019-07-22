@@ -55,7 +55,7 @@ class BaseNetwork:
     def compile_model(self):
         pass
 
-    def fit(self, epochs=5, shuffle=True, verbose=1):
+    def fit(self, epochs=5, shuffle=True, verbose=1, callbacks=None):
         if self._dataset_preprocessed is False:
             raise ValueError(
                 f"Data has not been prepared for training. "
@@ -73,13 +73,20 @@ class BaseNetwork:
             steps_per_epoch=len(self.train) // self._batch_size,
             validation_data=self.val_dset,
             verbose=verbose,
+            callbacks=callbacks
         )
 
-    def evaluate(self):
-        return self.model.evaluate(self.test_dset)
+    def evaluate(self, inputs=None):
+        if inputs is None:
+            return self.model.evaluate(self.test_dset)
+        else:
+            return self.model.evaluate(inputs)
 
-    def predict(self):
-        return self.model.predict(self.test_dset)
+    def predict(self, inputs=None):
+        if inputs is None:
+            return self.model.predict(self.test_dset)
+        else:
+            return self.model.predict(inputs)
 
     def summary(self):
         return self.model.summary()
