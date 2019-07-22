@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
+from .hidden_embedding import HiddenEmbedding
+
 
 class PearsonsR(Metric):
     def __init__(self, name="pearsons_corrcoef", **kwargs):
@@ -36,19 +38,16 @@ class PearsonsR(Metric):
 
 
 class BaseNetwork:
-    def __init__(self, dataset, target, p1=0.2, p2=0.2):
+    def __init__(self, dataset, target, test_sizes=(0.2, 0.2)):
         self.target = target
-        self.train, self.val, self.test = dataset.train_val_test_split(p1, p2)
-        self._dataset_preprocessed = False
+        self.train, self.val, self.test = dataset.train_val_test_split(*test_sizes)
         self.model = None
+        self._dataset_preprocessed = False
 
-    def prepare_tf_datasets(
-        self, batch_size, norm_method="z_score", batch_normalize=False
-    ):
+    def prepare_tf_datasets(self, batch_size, batch_normalize=None):
         self._batch_size = batch_size
-        self._norm_method = norm_method
         self.train_dset, self.val_dset, self.test_dset = [
-            lincs_dset(self.target, batch_size, norm_method, batch_normalize)
+            lincs_dset(self.target, batch_size, batch_normalize)
             for lincs_dset in [self.train, self.val, self.test]
         ]
         self._dataset_preprocessed = True
@@ -56,7 +55,7 @@ class BaseNetwork:
     def compile_model(self):
         pass
 
-    def fit(self, epochs=5, shuffle=True):
+    def fit(self, epochs=5, shuffle=True, verbose=1):
         if self._dataset_preprocessed is False:
             raise ValueError(
                 f"Data has not been prepared for training. "
@@ -73,6 +72,7 @@ class BaseNetwork:
             shuffle=shuffle,
             steps_per_epoch=len(self.train) // self._batch_size,
             validation_data=self.val_dset,
+            verbose=verbose,
         )
 
     def evaluate(self):
@@ -148,7 +148,7 @@ class SingleClassifier(BaseNetwork):
             raise Exception(
                 f"Dataset contains np.nan entry in '{target}'. "
                 f"You can drop these samples to train the "
-                f"classifier with LINCSDataset.drop_na('{target}')."
+                f"classifier with Dataset.drop_na('{target}')."
             )
         in_size = dataset.data.shape[1]
         out_size = len(unique_targets)
@@ -204,7 +204,7 @@ class MultiClassifier(SingleClassifier):
                 raise Exception(
                     f"Dataset contains np.nan entry in '{target}'. "
                     f"You can drop these samples to train the "
-                    f"classifier with LINCSDataset.drop_na('{target}')."
+                    f"classifier with Dataset.drop_na('{target}')."
                 )
             self.target_info[target] = len(unique_targets)
         in_size = dataset.data.shape[1]
@@ -277,6 +277,7 @@ class AutoEncoder(BaseNetwork):
         hidden_layers,
         dropout_rate=0.0,
         activation="relu",
+        final_activation="relu",
         optimizer="adam",
         l1_reg=None,
     ):
@@ -296,7 +297,6 @@ class AutoEncoder(BaseNetwork):
                 x = Dense(nunits, activation=activation)(x)
             x = Dropout(dropout_rate)(x)
 
-        final_activation = "linear" if self._norm_method is "standard_scale" else "relu"
         outputs = Dense(self.out_size, activation=final_activation)(x)
         model = Model(inputs, outputs)
 
@@ -317,7 +317,13 @@ class AutoEncoder(BaseNetwork):
                 f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
             )
         return min_size
-
+    
+    def get_hidden_embedding(self, lincs_dset=None):
+        if lincs_dset is None:
+            return HiddenEmbedding(self.test, self.encoder)
+        else:
+            return HiddenEmbedding(lincs_dset, self.encoder)
+        
     @property
     def encoder(self):
         return Model(

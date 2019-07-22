@@ -3,7 +3,7 @@ import dask.array as da
 import dask.dataframe as dd
 import h5py
 
-from .lincs_dataset import LINCSDataset
+from .dataset import Dataset
 
 # L1000 Data
 N_LANDMARK_GENES = 978
@@ -71,7 +71,7 @@ def load_data(
 
     sample_metadata = sample_metadata.reindex(data.index)
     gene_metadata = load_gene_metadata(gene_meta_path, gene_ids)
-    return LINCSDataset.from_dataframes(data, sample_metadata, gene_metadata)
+    return Dataset.from_dataframes(data, sample_metadata, gene_metadata)
 
 
 def load_gene_metadata(gene_meta_path, gene_ids):

@@ -4,7 +4,9 @@ import altair as alt
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from umap import UMAP
+import matplotlib.patches as mpatches
 import seaborn as sns
+import matplotlib.patches as mpatches
 
 from .plotting import create_cdict
 
@@ -17,9 +19,7 @@ class HiddenEmbedding:
     def __init__(self, dataset, encoder):
         self._dataset = dataset
         self._encoder = encoder
-        h = encoder.predict(dataset.data)
-        colnames = [f"unit_{i}" for i in range(h.shape[1])]
-        self._h = pd.DataFrame(h, columns=colnames, index=self._dataset.data.index)
+        self._h = self._get_embedding(dataset.data)
         self._embeddings = {}
 
     def zero_out_genes(self, k=50):
@@ -90,7 +90,9 @@ class HiddenEmbedding:
             meta_colnames = [meta_colnames]
         row_colors = [self._meta_col_cmap(colname) for colname in meta_colnames]
         embedding = self._h.loc[:, self._h.sum(0) > 0] if only_active_units else self._h
-        sns.clustermap(embedding, row_colors=row_colors, standard_scale=1)
+        labels = pd.Index(self._dataset.sample_meta[meta_colnames].apply(lambda x: '_'.join(x), axis=1).values, 'ids')
+        df = pd.DataFrame(embedding.values, columns=embedding.columns, index=labels)
+        sns.clustermap(df, row_colors=row_colors, standard_scale=1)
 
     def _meta_col_cmap(self, colname):
         meta_column = self._dataset.sample_meta[colname]
@@ -207,3 +209,9 @@ class HiddenEmbedding:
             .properties(height=50, width=850)
             .facet(row="unit")
         )
+    
+    def _get_embedding(self, data):
+        h = self._encoder.predict(data)
+        colnames = [f"unit_{i}" for i in range(h.shape[1])]
+        df = pd.DataFrame(h, columns=colnames, index=self._dataset.data.index)
+        return df

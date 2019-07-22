@@ -27,27 +27,17 @@ def _zscore_by_gene(X, y):
 
 
 def prepare_tf_dataset(
-    dataset,
-    batch_size,
-    shuffle,
-    repeat,
-    norm_method,
-    batch_normalize,
-    shuffle_buffer_size,
+    dataset, batch_size, shuffle, repeat, batch_normalize, shuffle_buffer_size
 ):
     """Creates a tensorflow Dataset to be ingested by Keras."""
-    if norm_method is not None:
-        if not batch_normalize:
-            dataset = normalize_X(dataset, norm_method)
     if shuffle:
         dataset = dataset.shuffle(buffer_size=shuffle_buffer_size)
     if repeat:
         dataset = dataset.repeat()
     if batch_size:
         dataset = dataset.batch(batch_size)
-    if norm_method is not None:
-        if batch_normalize:
-            dataset = normalize_X(dataset, norm_method)
+    if batch_normalize:
+        dataset = normalize_X(dataset, batch_normalize)
     # `prefetch` lets the dataset fetch batches, in the background while the model is training.
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     return dataset
