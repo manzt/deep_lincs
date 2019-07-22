@@ -4,6 +4,7 @@ import pandas as pd
 import altair as alt
 import os
 
+from .normalizers import get_norm_method
 from .tf_dataset_pipeline import prepare_tf_dataset
 from .plotting import boxplot, barplot
 
@@ -54,16 +55,11 @@ class Dataset:
             return Dataset(filtered, self.gene_meta.copy())
         else:
             self._data.dropna(subset=subset, inplace=True)
-    
-    def normalize(self, method):
-        data = self.data.copy()
-        if method is "z_score":
-            normed = (data - data.mean(axis=0)) / data.std(axis=0)
-        if method is "standard_scale":
-            tmp = data - data.min(axis=0)
-            normed = tmp / tmp.max(axis=0)
-        self._data.iloc[:, : self._split_index] = normed
-    
+
+    def normalize_by_gene(self, normalizer):
+        normalizer = get_norm_method(normalizer)
+        self._data.iloc[:, : self._split_index] = normalizer(self.data)
+
     def train_val_test_split(self, p1=0.2, p2=0.2):
         X_train, X_test = train_test_split(self._data, test_size=p1)
         X_train, X_val = train_test_split(X_train, test_size=p2)
@@ -77,17 +73,19 @@ class Dataset:
         os.makedirs(out_dir, exist_ok=True)
         prefix = f"{prefix}_" if prefix else ""
         fpaths = [
-            os.path.join(out_dir, f"{prefix}{suf}.tsv") 
+            os.path.join(out_dir, f"{prefix}{suf}.tsv")
             for suf in ["data", "sample_meta"]
         ]
         self.data.to_csv(fpaths[0], sep="\t")
         self.sample_meta.to_csv(fpaths[1], sep="\t")
-        
+
     def one_hot_encode(self, meta_field):
         one_hot_df = pd.get_dummies(self.sample_meta[meta_field])
         return one_hot_df.values
 
-    def gene_boxplot(self, gene_id=None, gene_symbol=None, meta_field=None, extent="min-max"):
+    def gene_boxplot(
+        self, gene_id=None, gene_symbol=None, meta_field=None, extent="min-max"
+    ):
         if gene_id is None and gene_symbol is None:
             raise ValueError("Must provide either gene_id or gene_symbol.")
         if gene_id is not None and gene_symbol is not None:
@@ -136,11 +134,9 @@ class KerasDataset(Dataset):
             raise ValueError(
                 f"LINCSKerasDataset 'name' must be one of {self._valid_names}, not '{name}'."
             )
-        self.shuffle, self.repeat = (False,False) if name is "train" else (False, False)
+        self.shuffle, self.repeat = (True, True) if name is "train" else (False, False)
 
-    def __call__(
-        self, target, batch_size=64, norm_method="z_score", batch_normalize=False
-    ):
+    def __call__(self, target, batch_size=64, batch_normalize=None):
         """Converts dataset to tf.data.Dataset to be ingested by Keras."""
         X = tf.data.Dataset.from_tensor_slices(self.data.values)
         y = self._get_target_as_tf_dataset(target)
@@ -149,7 +145,6 @@ class KerasDataset(Dataset):
             batch_size=batch_size,
             shuffle=self.shuffle,
             repeat=self.repeat,
-            norm_method=norm_method,
             batch_normalize=batch_normalize,
             shuffle_buffer_size=self.data.shape[0],
         )
@@ -167,6 +162,4 @@ class KerasDataset(Dataset):
 
     def __repr__(self):
         nsamples, ngenes = self.data.shape
-        return (
-            f"< {self.name} Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
-        )
+        return f"< {self.name} Dataset: (samples: {nsamples:,}, genes: {ngenes:,})>"
