@@ -212,7 +212,7 @@ class MultiClassifier(SingleClassifier):
         return in_size, out_size
 
     def plot_confusion_matrix(
-        self, normalize=True, zero_diag=False, size=300, color_scheme="viridis"
+        self, normalize=True, zero_diag=False, size=300, color_scheme="lightgreyteal"
     ):
         y_dummies = [pd.get_dummies(self.test.sample_meta[t]) for t in self.target]
         y_pred = self.predict()
