@@ -87,6 +87,9 @@ class BaseNetwork:
             return self.model.predict(self.test_dset)
         else:
             return self.model.predict(inputs)
+    
+    def save(self, file_name):
+        self.model.save(file_name)
 
     def summary(self):
         return self.model.summary()
