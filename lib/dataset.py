@@ -15,9 +15,6 @@ class Dataset:
         self._data = data
         self.gene_meta = gene_meta
         self.n_genes = n_genes
-        
-    def __call__(self, data):
-        return Dataset(data, self.gene_meta.copy(), self.n_genes)
 
     @property
     def data(self):
@@ -184,6 +181,10 @@ class KerasDataset(Dataset):
             shuffle_buffer_size=self.data.shape[0],
         )
         return tf_dataset
+    
+    @classmethod
+    def from_lincs_dataset(cls, lincs_dataset, name):
+        return cls(lincs_dataset._data, lincs_dataset.gene_meta, lincs_dataset.n_genes, name)
 
     def _get_target_as_tf_dataset(self, target):
         if target == "self":
