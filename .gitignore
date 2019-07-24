@@ -11,3 +11,6 @@ scratch.ipynb
 
 # output data from notebooks
 data/
+
+# output for models
+models/
