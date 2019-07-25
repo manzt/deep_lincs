@@ -97,6 +97,7 @@ class BaseNetwork:
 
 class SingleClassifier(BaseNetwork):
     def __init__(self, dataset, target, **kwargs):
+        dataset._data[target] = pd.Categorical(dataset._data[target])
         super(SingleClassifier, self).__init__(dataset=dataset, target=target, **kwargs)
         self.in_size, self.out_size = self._get_in_out_size(dataset, target)
 
@@ -175,6 +176,8 @@ class SingleClassifier(BaseNetwork):
 
 class MultiClassifier(SingleClassifier):
     def __init__(self, dataset, targets, **kwargs):
+        for target in targets:
+            dataset._data[target] = pd.Categorical(dataset._data[target])
         super(MultiClassifier, self).__init__(dataset=dataset, target=targets, **kwargs)
         self.in_size, self.out_size = self._get_in_out_size(dataset, targets)
 
