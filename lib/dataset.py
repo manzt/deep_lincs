@@ -28,7 +28,7 @@ class Dataset:
     def from_dataframes(cls, data_df, sample_meta_df, gene_meta_df):
         data = data_df.join(sample_meta_df)
         return cls(data, gene_meta_df, len(gene_meta_df))
-    
+
     def _copy(self, data):
         return Dataset(data, self.gene_meta.copy(), self.n_genes)
 
@@ -36,10 +36,12 @@ class Dataset:
         sampled = (
             self._data.sample(size, replace=replace)
             if meta_groups is None
-            else self._data.sample(frac=1, replace=replace).groupby(meta_groups).head(size)
+            else self._data.sample(frac=1, replace=replace)
+            .groupby(meta_groups)
+            .head(size)
         )
         return self._copy(sampled)
-    
+
     def set_col_prefix(self, prefix):
         data = self._data.add_prefix(prefix)
         return self._copy(data)
@@ -50,7 +52,7 @@ class Dataset:
             values = [values] if type(values) == str else values
             filtered = filtered[filtered[colname].isin(values)]
         return self._copy(filtered)
-    
+
     def select_meta(self, meta_fields):
         selected = self._data[[*self.data.columns.values, *meta_fields]]
         return self._copy(selected)
@@ -59,26 +61,33 @@ class Dataset:
         """Returns new dataset with subset of fields."""
         mask = self._data.isin(sample_ids)
         return self._copy(self._data[mask])
-    
+
     def split(self, **kwargs):
         if len(kwargs.keys()) != 1:
-            raise ValueError('One keyword argument is required: Key must be a meta_data field.') 
+            raise ValueError(
+                "One keyword argument is required: Key must be a meta_data field."
+            )
         data = self._data.copy()
         for colname, values in kwargs.items():
             mask = data[colname].isin(values)
             return self._copy(data[mask]), self._copy(data[~mask])
-        
+
     def merge(self, lincs_dataset, r_prefix="ctl_"):
-        data = self._merge_right(self.data, lincs_dataset.data, r_prefix) 
-        sample_meta = self._merge_right(self.sample_meta, lincs_dataset.sample_meta, r_prefix)
+        data = self._merge_right(self.data, lincs_dataset.data, r_prefix)
+        sample_meta = self._merge_right(
+            self.sample_meta, lincs_dataset.sample_meta, r_prefix
+        )
         merged = data.join(sample_meta.drop("inst_id", axis=1)).set_index("inst_id")
-        return Dataset(merged, self.gene_meta.copy(), data.shape[1]-1)
-    
+        return Dataset(merged, self.gene_meta.copy(), data.shape[1] - 1)
+
+    def set_categorical(self, colname):
+        self._data[colname] = pd.Categorical(self._data[colname])
+
     def _merge_right(self, df1, df2, r_prefix):
         df2 = df2.add_prefix(r_prefix).reset_index().drop("inst_id", axis=1)
         merged = df1.reset_index().join(df2)
         return merged
-        
+
     def dropna(self, subset, inplace=False):
         if type(subset) is str:
             subset = [subset]
@@ -181,10 +190,12 @@ class KerasDataset(Dataset):
             shuffle_buffer_size=self.data.shape[0],
         )
         return tf_dataset
-    
+
     @classmethod
     def from_lincs_dataset(cls, lincs_dataset, name):
-        return cls(lincs_dataset._data, lincs_dataset.gene_meta, lincs_dataset.n_genes, name)
+        return cls(
+            lincs_dataset._data, lincs_dataset.gene_meta, lincs_dataset.n_genes, name
+        )
 
     def _get_target_as_tf_dataset(self, target):
         if target == "self":

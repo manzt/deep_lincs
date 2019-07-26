@@ -90,7 +90,12 @@ class HiddenEmbedding:
             meta_colnames = [meta_colnames]
         row_colors = [self._meta_col_cmap(colname) for colname in meta_colnames]
         embedding = self._h.loc[:, self._h.sum(0) > 0] if only_active_units else self._h
-        labels = pd.Index(self._dataset.sample_meta[meta_colnames].apply(lambda x: '_'.join(x), axis=1).values, 'ids')
+        labels = pd.Index(
+            self._dataset.sample_meta[meta_colnames]
+            .apply(lambda x: "_".join(x), axis=1)
+            .values,
+            "ids",
+        )
         df = pd.DataFrame(embedding.values, columns=embedding.columns, index=labels)
         sns.clustermap(df, row_colors=row_colors, standard_scale=1)
 
@@ -209,7 +214,7 @@ class HiddenEmbedding:
             .properties(height=50, width=850)
             .facet(row="unit")
         )
-    
+
     def _get_embedding(self, data):
         h = self._encoder.predict(data)
         colnames = [f"unit_{i}" for i in range(h.shape[1])]

@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import dask.array as da
 import dask.dataframe as dd
 import h5py
@@ -124,3 +125,26 @@ def compute_summary_stats(data_path):
         df = ddf.describe().compute()
 
     return df
+
+
+def get_most_abundant_pert_ids(dataset, k):
+    """ Returns the k most abundant perturbagen ids for each pert-type in dataset."""
+    subset = (
+        dataset.sample_meta.groupby(["pert_type", "pert_id"])
+        .size()
+        .sort_values()
+        .to_frame()
+        .groupby("pert_type")
+        .tail(k)
+        .reset_index()
+    )
+    return subset.pert_id.values
+
+
+def top_k_accuracy(y_true, y_pred, k=10):
+    """Returns the accuray of the model considering the top k predictions."""
+    n, _ = y_true.shape
+    top_k_idxs = (-y_pred).argsort(1)[:, :k]  # get top index
+    y_true_top_k = y_true[np.arange(n)[:, np.newaxis], top_k_idxs]
+    accuracy = y_true_top_k.sum() / n
+    return accuracy

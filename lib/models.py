@@ -73,7 +73,7 @@ class BaseNetwork:
             steps_per_epoch=len(self.train) // self._batch_size,
             validation_data=self.val_dset,
             verbose=verbose,
-            callbacks=callbacks
+            callbacks=callbacks,
         )
 
     def evaluate(self, inputs=None):
@@ -87,7 +87,7 @@ class BaseNetwork:
             return self.model.predict(self.test_dset)
         else:
             return self.model.predict(inputs)
-    
+
     def save(self, file_name):
         self.model.save(file_name)
 
@@ -330,13 +330,13 @@ class AutoEncoder(BaseNetwork):
                 f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
             )
         return min_size
-    
+
     def get_hidden_embedding(self, lincs_dset=None):
         if lincs_dset is None:
             return HiddenEmbedding(self.test, self.encoder)
         else:
             return HiddenEmbedding(lincs_dset, self.encoder)
-        
+
     @property
     def encoder(self):
         return Model(
