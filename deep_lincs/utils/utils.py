@@ -16,7 +16,8 @@ CID_NODE = "/0/META/COL/id"
 DATA_NODE = "/0/DATA/0/matrix"
 ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
-    
+
+
 def load_data(
     data_path,
     inst_meta_path,
@@ -108,6 +109,7 @@ def subset_samples(sample_meta_path, cell_meta_path, pert_types, cell_ids):
 
     metadata = merge_cell_metadata(cell_meta_path, metadata)
     return metadata.set_index("inst_id")
+
 
 def get_most_abundant_pert_ids(dataset, k):
     """ Returns the k most abundant perturbagen ids for each pert-type in dataset."""

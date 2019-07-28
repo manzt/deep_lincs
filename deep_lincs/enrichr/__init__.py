@@ -1,4 +1,4 @@
 """Enrichr API Wrapper"""
-__all__ = ['EnrichrQuery']
+__all__ = ["EnrichrQuery"]
 
-from ._enrichr import EnrichrQuery 
+from ._enrichr import EnrichrQuery

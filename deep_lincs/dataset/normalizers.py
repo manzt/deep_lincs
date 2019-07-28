@@ -1,5 +1,6 @@
 import six
 
+
 def z_score(X):
     return (X - X.mean(axis=0)) / X.std(axis=0)
 

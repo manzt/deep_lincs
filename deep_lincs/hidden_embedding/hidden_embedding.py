@@ -1,12 +1,13 @@
 import pandas as pd
 import numpy as np
 import altair as alt
+
+import matplotlib.patches as mpatches
+import seaborn as sns
+
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from umap import UMAP
-import matplotlib.patches as mpatches
-import seaborn as sns
-import matplotlib.patches as mpatches
 
 from ..plotting.plots import create_cdict
 

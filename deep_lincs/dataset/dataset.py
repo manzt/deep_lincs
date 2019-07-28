@@ -10,6 +10,7 @@ from .tf_dataset_pipeline import prepare_tf_dataset
 from .load_yaml import yaml_to_dataframes
 from ..plotting.plots import boxplot, barplot
 
+
 class Dataset:
     def __init__(self, data, gene_meta, n_genes=978):
         self._data = data
@@ -28,10 +29,12 @@ class Dataset:
     def from_dataframes(cls, data_df, sample_meta_df, gene_meta_df):
         data = data_df.join(sample_meta_df)
         return cls(data, gene_meta_df, len(gene_meta_df))
-    
+
     @classmethod
     def from_yaml(cls, yaml_file, only_landmark=True, **filter_kwargs):
-        data_df, sample_meta_df, gene_meta_df = yaml_to_dataframes(yaml_file, only_landmark, **filter_kwargs)
+        data_df, sample_meta_df, gene_meta_df = yaml_to_dataframes(
+            yaml_file, only_landmark, **filter_kwargs
+        )
         data = data_df.join(sample_meta_df)
         return cls(data, gene_meta_df, len(gene_meta_df))
 
@@ -86,7 +89,7 @@ class Dataset:
         df2 = df2.add_prefix(r_prefix).reset_index().drop("inst_id", axis=1)
         merged = df1.reset_index().join(df2)
         return merged
-    
+
     def set_categorical(self, colname):
         self._data[colname] = pd.Categorical(self._data[colname])
 
@@ -155,7 +158,7 @@ class Dataset:
         colname = "counts" if normalize is False else "frequency"
         df = pd.DataFrame({meta_field: counts.index.values, colname: counts.values})
         return barplot(df=df, x_field=meta_field, y_field=colname)
-    
+
     def copy(self):
         return Dataset(self._data.copy(), self.gene_meta.copy(), self.n_genes)
 
