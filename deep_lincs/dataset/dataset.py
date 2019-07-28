@@ -7,8 +7,8 @@ import os
 
 from .normalizers import get_norm_method
 from .tf_dataset_pipeline import prepare_tf_dataset
-from .plotting import boxplot, barplot
-
+from .load_yaml import yaml_to_dataframes
+from ..plotting.plots import boxplot, barplot
 
 class Dataset:
     def __init__(self, data, gene_meta, n_genes=978):
@@ -28,6 +28,12 @@ class Dataset:
     def from_dataframes(cls, data_df, sample_meta_df, gene_meta_df):
         data = data_df.join(sample_meta_df)
         return cls(data, gene_meta_df, len(gene_meta_df))
+    
+    @classmethod
+    def from_yaml(cls, yaml_file, only_landmark=True, **filter_kwargs):
+        data_df, sample_meta_df, gene_meta_df = yaml_to_dataframes(yaml_file, only_landmark, **filter_kwargs)
+        data = data_df.join(sample_meta_df)
+        return cls(data, gene_meta_df, len(gene_meta_df))
 
     def _copy(self, data):
         return Dataset(data, self.gene_meta.copy(), self.n_genes)
@@ -41,10 +47,6 @@ class Dataset:
             .head(size)
         )
         return self._copy(sampled)
-
-    def set_col_prefix(self, prefix):
-        data = self._data.add_prefix(prefix)
-        return self._copy(data)
 
     def filter_rows(self, **kwargs):
         filtered = self._data.copy()
@@ -80,13 +82,13 @@ class Dataset:
         merged = data.join(sample_meta.drop("inst_id", axis=1)).set_index("inst_id")
         return Dataset(merged, self.gene_meta.copy(), data.shape[1] - 1)
 
-    def set_categorical(self, colname):
-        self._data[colname] = pd.Categorical(self._data[colname])
-
     def _merge_right(self, df1, df2, r_prefix):
         df2 = df2.add_prefix(r_prefix).reset_index().drop("inst_id", axis=1)
         merged = df1.reset_index().join(df2)
         return merged
+    
+    def set_categorical(self, colname):
+        self._data[colname] = pd.Categorical(self._data[colname])
 
     def dropna(self, subset, inplace=False):
         if type(subset) is str:
@@ -153,7 +155,7 @@ class Dataset:
         colname = "counts" if normalize is False else "frequency"
         df = pd.DataFrame({meta_field: counts.index.values, colname: counts.values})
         return barplot(df=df, x_field=meta_field, y_field=colname)
-
+    
     def copy(self):
         return Dataset(self._data.copy(), self.gene_meta.copy(), self.n_genes)
 

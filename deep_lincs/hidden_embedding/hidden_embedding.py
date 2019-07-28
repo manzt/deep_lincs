@@ -8,7 +8,7 @@ import matplotlib.patches as mpatches
 import seaborn as sns
 import matplotlib.patches as mpatches
 
-from .plotting import create_cdict
+from ..plotting.plots import create_cdict
 
 sns.set(color_codes=True)
 

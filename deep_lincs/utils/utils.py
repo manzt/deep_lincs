@@ -5,6 +5,7 @@ import dask.dataframe as dd
 import h5py
 
 from .dataset import Dataset
+from .parse_yaml import parse_yaml_settings
 
 # L1000 Data
 N_LANDMARK_GENES = 978
@@ -15,8 +16,7 @@ CID_NODE = "/0/META/COL/id"
 DATA_NODE = "/0/DATA/0/matrix"
 ROW_META_GROUP_NODE = "/0/META/ROW"
 COL_META_GROUP_NODE = "/0/META/COL"
-
-
+    
 def load_data(
     data_path,
     inst_meta_path,
@@ -76,11 +76,7 @@ def load_data(
 
 
 def load_gene_metadata(gene_meta_path, gene_ids):
-    gene_info = pd.read_csv(gene_meta_path, sep="\t")
-    gene_info.columns = gene_info.columns.str.slice(
-        3
-    )  # remove leading "pr_" from columns
-    gene_info = gene_info.set_index("gene_id")
+    gene_info = pd.read_csv(gene_meta_path, sep="\t", index_col="gene_id")
     return gene_info[gene_info.index.isin(gene_ids)]
 
 
@@ -112,20 +108,6 @@ def subset_samples(sample_meta_path, cell_meta_path, pert_types, cell_ids):
 
     metadata = merge_cell_metadata(cell_meta_path, metadata)
     return metadata.set_index("inst_id")
-
-
-def compute_summary_stats(data_path):
-    with h5py.File(data_path) as f:
-        data_dset = f[DATA_NODE]
-        arr = da.from_array(data_dset)[:, :N_LANDMARK_GENES]
-        ddf = dd.from_dask_array(arr)
-
-        landmark_gene_labels = f[RID_NODE][:N_LANDMARK_GENES].astype(str)
-        ddf.columns = landmark_gene_labels
-        df = ddf.describe().compute()
-
-    return df
-
 
 def get_most_abundant_pert_ids(dataset, k):
     """ Returns the k most abundant perturbagen ids for each pert-type in dataset."""
