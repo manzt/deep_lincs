@@ -4,8 +4,7 @@ import dask.array as da
 import dask.dataframe as dd
 import h5py
 
-from .dataset import Dataset
-from .parse_yaml import parse_yaml_settings
+from deep_lincs.dataset import Dataset
 
 # L1000 Data
 N_LANDMARK_GENES = 978
