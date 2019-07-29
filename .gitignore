@@ -13,4 +13,4 @@ scratch.ipynb
 data/
 
 # output for models
-models/
+saved_models/
