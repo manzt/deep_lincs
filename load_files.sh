@@ -18,3 +18,6 @@ for f in ${files[*]}; do
   curl "$GEO_URL/download/?acc=$ACC&format=file&file=${PREFIX}_$f.gz" \
     | gunzip > $PREFIX/$f
 done
+
+# remove "pr_" from gene metadata cols
+sed -i "s/pr_//g" $PREFIX/gene_info.txt
