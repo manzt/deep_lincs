@@ -82,22 +82,23 @@ class MultiClassifier(BaseNetwork):
             cm = cm / cm.sum(axis=1)[:, np.newaxis]
 
         df = (
-            pd.DataFrame(cm, columns=classes, index=classes)
+            pd.DataFrame(cm.round(2), columns=classes, index=classes)
             .reset_index()
             .melt(id_vars="index")
+            .round(2)
         )
 
         base = alt.Chart(df).encode(
             x=alt.X("index:N", title="Predicted Label"),
             y=alt.Y("variable:N", title="True Label"),
+            tooltip=["value"],
         )
 
         heatmap = base.mark_rect().encode(
             color=alt.Color("value:Q", scale=alt.Scale(scheme=color_scheme))
         )
-
-        text = base.mark_text(size=size * 0.05).encode(
-            text=alt.Text("value:Q", format=".2")
+        text = base.mark_text(size=0.5 * (size / len(classes))).encode(
+            text=alt.Text("value")
         )
 
         return (heatmap + text).properties(width=size, height=size, title=title)

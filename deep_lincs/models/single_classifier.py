@@ -49,18 +49,21 @@ class SingleClassifier(BaseNetwork):
             pd.DataFrame(cm, columns=classes, index=classes)
             .reset_index()
             .melt(id_vars="index")
+            .round(2)
         )
 
         base = alt.Chart(df).encode(
-            x=alt.X("index", title=None), y=alt.Y("variable", title=None)
+            x=alt.X("index", title=None),
+            y=alt.Y("variable", title=None),
+            tooltip=["value"],
         )
 
         heatmap = base.mark_rect().encode(
             color=alt.Color("value", scale=alt.Scale(scheme=color_scheme))
         )
 
-        text = base.mark_text(size=size * 0.05).encode(
-            text=alt.Text("value", format=".2")
+        text = base.mark_text(size=0.5 * (size / len(classes))).encode(
+            text=alt.Text("value")
         )
 
         return (heatmap + text).properties(width=size, height=size)
