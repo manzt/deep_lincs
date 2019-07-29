@@ -31,9 +31,9 @@ class Dataset:
         return cls(data, gene_meta_df, len(gene_meta_df))
 
     @classmethod
-    def from_yaml(cls, yaml_file, only_landmark=True, **filter_kwargs):
+    def from_yaml(cls, yaml_file, sample_ids=None, only_landmark=True, **filter_kwargs):
         data_df, sample_meta_df, gene_meta_df = yaml_to_dataframes(
-            yaml_file, only_landmark, **filter_kwargs
+            yaml_file, sample_ids, only_landmark, **filter_kwargs
         )
         data = data_df.join(sample_meta_df)
         return cls(data, gene_meta_df, len(gene_meta_df))

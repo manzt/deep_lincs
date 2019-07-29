@@ -8,22 +8,25 @@ from .gctx_matrix_loader import GctxMatrixLoader
 from .csv_metadata_loader import CsvMetaDataLoader
 
 
-def yaml_to_dataframes(yaml_file, only_landmark=True, **filter_kwargs):
+def yaml_to_dataframes(yaml_file, sample_ids=None, only_landmark=True, **filter_kwargs):
     max_genes = 978 if only_landmark else None  # only select landmark genes
     data_loader, sample_meta_loader, gene_meta_loader = parse_settings(yaml_file)
     # Filter metadata by categorical column values
-    sample_metadata = load_df_and_filter(sample_meta_loader, **filter_kwargs)
+    sample_metadata = load_df_and_filter(sample_meta_loader, sample_ids, **filter_kwargs)
     # Read only a subset of the data matrix
     data = data_loader.read(sample_ids=sample_metadata.index, max_genes=max_genes)
     gene_metadata = gene_meta_loader.read(ids=data.columns.tolist())
     return data, sample_metadata.reindex(data.index), gene_metadata
 
 
-def load_df_and_filter(loader, **kwargs):
+def load_df_and_filter(loader, sample_ids, **kwargs):
     df = loader.read()
-    for colname, values in kwargs.items():
-        values = [values] if type(values) == str else values
-        df = df[df[colname].isin(values)]
+    if sample_ids:
+        return df[df.index.isin(sample_ids)]
+    else:
+        for colname, values in kwargs.items():
+            values = [values] if type(values) == str else values
+            df = df[df[colname].isin(values)]
     return df
 
 
