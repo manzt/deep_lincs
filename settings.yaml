@@ -31,18 +31,18 @@ sample_metadata:
           usecols: 
               - cell_id 
               - cell_type 
-              - base_cell_id 
               - precursor_cell_id
               - modification 
               - sample_type 
               - primary_site 
               - subtype
               - original_growth_pattern 
-              - provider_catalog_id
               - original_source_vendor
               - donor_age 
               - donor_sex
-              - donor_ethnicity
+              - donor_ethnicity 
+#               - provider_catalog_id
+#               - base_cell_id 
           na_values: "-666"
           sep: "\t"
         - name: pert_info

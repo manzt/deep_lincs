@@ -122,11 +122,10 @@ def plot_embedding(hidden_output_df, meta_data_df, color="cell_id", type_="pca")
     )
 
     df = df.join(meta_data_df)
-
     return (
         alt.Chart(df.reset_index())
         .mark_circle()
-        .encode(x=f"{type_}_1", y=f"{type_}_2", color=color, tooltip=["inst_id"])
+        .encode(x=f"{type_}_1:Q", y=f"{type_}_2:Q", color=color, tooltip=["inst_id"])
     )
 
 
