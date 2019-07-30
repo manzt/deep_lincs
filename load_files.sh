@@ -1,5 +1,6 @@
 #!/bin/bash
 
+DATA_DIR=data
 ACC=GSE92742
 PREFIX=${ACC}_Broad_LINCS
 GEO_URL=https://www.ncbi.nlm.nih.gov/geo
@@ -12,12 +13,15 @@ files=(
     pert_info.txt
 )
 
-mkdir $PREFIX
+mkdir $DATA_DIR && cd $DATA_DIR
+mkdir $PREFIX && cd $PREFIX
 
 for f in ${files[*]}; do
   curl "$GEO_URL/download/?acc=$ACC&format=file&file=${PREFIX}_$f.gz" \
-    | gunzip > $PREFIX/$f
+    | gunzip > $f
 done
 
 # remove "pr_" from gene metadata cols
-sed -i "s/pr_//g" $PREFIX/gene_info.txt
+sed -i "s/pr_//g" gene_info.txt
+
+cd ../../
