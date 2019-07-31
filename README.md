@@ -6,8 +6,9 @@ A deep learning wrapper around Keras for [Lincs](http://www.lincsproject.org/) L
 ```bash
 $ git clone https://github.com/manzt/deep_lincs.git && cd deep_lincs
 $ source load_files.sh # download raw data from GEO
-$ conda env create -f environment.yml
-$ conda activate lincs
+$ conda env create -f environment_gpu.yml # or environment.yml if no GPU
+$ conda activate deep-lincs-gpu # or deep-lincs if no GPU
+$ jupyter lab # get started in a notebook 
 ```
 
 ## L1000 Dataset
