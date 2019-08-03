@@ -1,0 +1,13 @@
+numpy 
+pandas
+dask
+six
+scikit-learn
+umap-learn
+altair 
+matplotlib
+seaborn
+h5py
+requests
+tensorflow==2.0.0b1
+
