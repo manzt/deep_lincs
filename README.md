@@ -4,12 +4,18 @@ A deep learning wrapper around Keras for [Lincs](http://www.lincsproject.org/) L
 
 Check out the documentation [here](https://deep-lincs.readthedocs.io/en/latest/).
 
+## Installation
+```bash
+$ pip install deep-lincs
+```
+
 ## Getting started
+The data for 1.3 million L1000 profiles are availabe [on GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE92742). The script load_files.sh fetches the `Level 3` data along with all metadata available. The largest file is quite big (~50Gb) so please be patient.
+
 ```bash
 $ git clone https://github.com/manzt/deep_lincs.git && cd deep_lincs
 $ source load_files.sh # download raw data from GEO
-$ conda env create -f environment_gpu.yml # or environment.yml if no GPU
-$ conda activate deep-lincs-gpu # or deep-lincs if no GPU
+$ cd notebooks 
 $ jupyter lab # get started in a notebook 
 ```
 
