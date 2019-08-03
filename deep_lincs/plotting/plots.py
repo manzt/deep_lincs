@@ -136,10 +136,10 @@ def plot_clustermap(data, meta_data, meta_colname):
     sns.clustermap(data, row_colors=row_colors, z_score=0)
 
 
-def boxplot(df, x_field, y_field, extent):
-    plot = alt.Chart(df).mark_boxplot(extent=extent).encode(y=f"{y_field}:Q")
-    if x_field is not None:
-        plot = plot.encode(x=f"{x_field}:N")
+def boxplot(df, x, y, extent):
+    plot = alt.Chart(df).mark_boxplot(extent=extent).encode(y=y)
+    if x is not None:
+        plot = plot.encode(x=x)
     return plot
 
 

@@ -39,6 +39,7 @@ class CsvMetaDataLoader:
                 )
                 .set_index(cache_index)
             )
+        df.index.astype(str, copy=False)  # enforce string index
         return df
 
     @classmethod
