@@ -21,9 +21,7 @@ You can find the software `on github <https://github.com/manzt/deep_lincs>`_.
 
 .. code:: bash
 
-     git clone https://github.com/manzt/deep_lincs.git && cd deep_lincs
-     conda env create -f environment_gpu.yml # or environment.yml
-     conda activate deep-lincs-gpu # or deep-lincs if no GPU
+     pip install deep-lincs
 
 
 **Downloading the data**
@@ -32,15 +30,19 @@ The data for 1.3 million L1000 profiles are availabe `on GEO <https://www.ncbi.n
 The script ``load_files.sh`` fetches the ``Level 3`` data along with all metadata available. The largest file is quite big (~50Gb) so please be patient.
 
 .. code:: bash
-
+    
+    git clone https://github.com/manzt/deep_lincs.git && cd deep_lincs
     source load_files.sh # download raw data from GEO
 
 **Getting started**
 
-.. code:: bash 
+Navigate to the `example notebooks <https://github.com/manzt/deep_lincs/tree/master/notebooks>`_ and try building a model!
 
-    jupyter lab # get started in a notebook 
+.. code:: bash
 
+    cd notebooks
+    jupyter lab # easiest for plotting with altair
+    
 
 .. toctree::
    :caption: API Reference:
