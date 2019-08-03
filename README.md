@@ -2,6 +2,8 @@
 
 A deep learning wrapper around Keras for [Lincs](http://www.lincsproject.org/) L1000 expression data.
 
+Check out the documentation [here](https://deep-lincs.readthedocs.io/en/latest/).
+
 ## Getting started
 ```bash
 $ git clone https://github.com/manzt/deep_lincs.git && cd deep_lincs
@@ -14,7 +16,7 @@ $ jupyter lab # get started in a notebook
 ## L1000 Dataset
 The `Dataset` class is built with a variety of methods to load, subset, filter, and combine expression and metadata. 
 ```python
-from deep_lincs.dataset import Dataset
+from deep_lincs import Dataset
 
 # Select samples 
 cell_ids = ["VCAP", "MCF7", "PC3"]
