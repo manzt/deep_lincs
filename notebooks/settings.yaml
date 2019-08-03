@@ -1,4 +1,4 @@
-data_dir: data/GSE92742_Broad_LINCS/
+data_dir: ../data/GSE92742_Broad_LINCS/
 
 data:
     file: Level3_INF_mlr12k_n1319138x12328.gctx
