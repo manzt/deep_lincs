@@ -10,5 +10,6 @@ seaborn
 h5py
 requests
 pyyaml
+fsspec>=0.3.3
 tensorflow==2.0.0b1
 
