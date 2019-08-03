@@ -152,8 +152,8 @@ def scatter(df, x_field, y_field, color_field=None, tooltip_fields=None):
     return scatter
 
 
-def barplot(df, x_field, y_field):
-    return alt.Chart(df).mark_bar().encode(x=alt.X(x_field, sort=None), y=y_field)
+def barplot(df, x, y, sort=None):
+    return alt.Chart(df).mark_bar().encode(x=alt.X(x, sort=sort), y=y)
 
 
 def heatmap(df, x_field, y_field, value_field, color_scheme, has_text):
