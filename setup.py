@@ -1,7 +1,7 @@
 from setuptools import setup
 
 def readme():
-    with open('README.md') as readme_file:
+    with open('README.md', encoding='utf-8') as readme_file:
         return readme_file.read()
 
 configuration = {
@@ -9,6 +9,7 @@ configuration = {
     'version': '0.0.1',
     'description' : 'A framework for deep learning with LINCS L1000 Data',
     'long_description' : readme(),
+    'long_description_content_type' : 'text/markdown',
     'classifiers' : [
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
