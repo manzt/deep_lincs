@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>API Guide &#8212; DeepLINCS 0.0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="DeepLINCS: A framework for deep learning with LINCS L1000 Data" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="api-guide">
+<h1>API Guide<a class="headerlink" href="#api-guide" title="Permalink to this headline">¶</a></h1>
+<p>DeepLincs has a single class <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code>.</p>
+<div class="section" id="dataset">
+<h2>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="deep_lincs.dataset.Dataset">
+<em class="property">class </em><code class="sig-prename descclassname">deep_lincs.dataset.</code><code class="sig-name descname">Dataset</code><span class="sig-paren">(</span><em class="sig-param">data</em>, <em class="sig-param">gene_meta</em>, <em class="sig-param">n_genes</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents an L1000 Dataset</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">data</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">dataframe</span></code>, shape (n_samples, (n_genes + n_metadata_fields))</span></dt><dd><p>A sample by gene expression matrix padded to the right with per sample metadata.
+Generally it is easiest to construct a Dataset from a class method, <code class="docutils literal notranslate"><span class="pre">Dataset.from_yaml()</span></code> or <code class="docutils literal notranslate"><span class="pre">Dataset.from_dataframes()</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">gene_meta</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">dataframe</span></code>, shape (n_genes, n_features)</span></dt><dd><p>Contains the metadata for each of the genes in the data matrix.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">n_genes</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">int</span></code></span></dt><dd><p>Number of genes in expression matrix. This explicitly defines 
+the column index which divides the expression values and metadata.</p>
+</dd>
+</dl>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">data</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">dataframe</span></code>, shape (n_samples, n_genes)</span></dt><dd><p>Gene expression matrix as a dataframe. Shared indicies with <cite>self.sample_meta</cite> and <cite>self.gene_meta</cite>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">sample_meta</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">dataframe</span></code>, shape (n_samples, n_metadata_features)</span></dt><dd><p>Per profile metadata. Row index same as <code class="docutils literal notranslate"><span class="pre">self.data.index</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">gene_meta</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">dataframe</span></code>, shape (n_genes, n_gene_features)</span></dt><dd><p>Gene metadata. Row index same as <code class="docutils literal notranslate"><span class="pre">self.data.columns</span></code>.</p>
+</dd>
+</dl>
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.copy">
+<code class="sig-name descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copies Dataset to a new object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.data">
+<em class="property">property </em><code class="sig-name descname">data</code><a class="headerlink" href="#deep_lincs.dataset.Dataset.data" title="Permalink to this definition">¶</a></dt>
+<dd><p>A dataframe representing the sample x gene expression matrix</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.dropna">
+<code class="sig-name descname">dropna</code><span class="sig-paren">(</span><em class="sig-param">subset</em>, <em class="sig-param">inplace=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.dropna"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.dropna" title="Permalink to this definition">¶</a></dt>
+<dd><p>Drops profiles for which there is no metadata in subset</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">subset</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">list</span></code></span></dt><dd><p>Metadata field or fields.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">inplace</span></code>: <code class="docutils literal notranslate"><span class="pre">bool</span></code> (optional, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>)</dt><dd><p>If True, do operation inplace and return None.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.filter_rows">
+<code class="sig-name descname">filter_rows</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.filter_rows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.filter_rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Dataset of filtered profiles</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">kwargs</span></code> :</dt><dd><p>Keyword args to subset data by specific features in sample metadata. 
+Each kwarg must follow the following.``keyword``: a column in metadata, 
+<code class="docutils literal notranslate"><span class="pre">arg</span></code>: a list of values to filter from keyword field.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">filter_rows</span><span class="p">(</span><span class="n">cell_id</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;VCAP, PC3&quot;</span><span class="p">])</span> 
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">filter_rows</span><span class="p">(</span><span class="n">cell_id</span><span class="o">=</span><span class="s2">&quot;VCAP&quot;</span><span class="p">,</span> <span class="n">pert_type</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ctl_vehicle&quot;</span><span class="p">,</span> <span class="s2">&quot;trt_cp&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.from_dataframes">
+<em class="property">classmethod </em><code class="sig-name descname">from_dataframes</code><span class="sig-paren">(</span><em class="sig-param">data_df</em>, <em class="sig-param">sample_meta_df</em>, <em class="sig-param">gene_meta_df</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.from_dataframes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.from_dataframes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dataset constructor method from multiple dataframes</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">data_df</span></code><span class="classifier">dataframe, shape (n_samples, n_genes)</span></dt><dd><p>Contains the expression data from experiment. Must have 
+shared row index with <code class="docutils literal notranslate"><span class="pre">sample_meta_df</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">sample_meta_df</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">dataframe</span></code>, shape (n_samples, n_meta_features)</span></dt><dd><p>Contains the metadata for each of the samples in experiment.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">gene_meta_df</span></code><span class="classifier">dataframe, shape (n_genes, n_gene_features)</span></dt><dd><p>Contains the metadata for each of the genes in experiment.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.from_yaml">
+<em class="property">classmethod </em><code class="sig-name descname">from_yaml</code><span class="sig-paren">(</span><em class="sig-param">path</em>, <em class="sig-param">sample_ids=None</em>, <em class="sig-param">only_landmark=True</em>, <em class="sig-param">**filter_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.from_yaml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.from_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dataset constructor method from yaml specification</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">path</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code></span></dt><dd><p>Valid string path to <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> or <code class="docutils literal notranslate"><span class="pre">.yml</span></code> file.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">sample_ids</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">list</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">None</span></code>)</span></dt><dd><p>Unique sample ids to read from data and metadata files.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">only_landmark</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">bool</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">True</span></code>)</span></dt><dd><p>Whether to parse all genes or only the landmark.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">filter_kwargs</span></code> :</dt><dd><p>Optional keyword args to subset data by specific features 
+in per sample metadata. Each kwarg must follow the following.
+<code class="docutils literal notranslate"><span class="pre">keyword</span></code> - a column in metadata <code class="docutils literal notranslate"><span class="pre">arg</span></code>     - a list 
+of values to filter from keyword field.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;settings.yaml&quot;</span><span class="p">,</span> <span class="n">cell_id</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;MCF7&quot;</span><span class="p">,</span> <span class="s2">&quot;PC3&quot;</span><span class="p">],</span> <span class="n">pert_id</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;trt_cp&quot;</span><span class="p">])</span> 
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.normalize_by_gene">
+<code class="sig-name descname">normalize_by_gene</code><span class="sig-paren">(</span><em class="sig-param">normalizer='standard_scale'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.normalize_by_gene"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.normalize_by_gene" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalize expression by gene</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">normalizer</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">func</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">'standard_scale'</span></code>)</span></dt><dd><p>Method used normalise dataset. Valid str options are <code class="docutils literal notranslate"><span class="pre">'standard_scale'</span></code> 
+and <code class="docutils literal notranslate"><span class="pre">'z_score'</span></code>. If a function is provided, it must take 
+one argument (<code class="docutils literal notranslate"><span class="pre">array</span></code>), and return an array of the same dimensions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.one_hot_encode">
+<code class="sig-name descname">one_hot_encode</code><span class="sig-paren">(</span><em class="sig-param">meta_field</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.one_hot_encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.one_hot_encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a one-hot vector for a metadata field for all profiles</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">meta_field</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code></span></dt><dd><p>Valid sample metadata column.</p>
+</dd>
+</dl>
+<p><code class="docutils literal notranslate"><span class="pre">one_hot</span></code> : <code class="docutils literal notranslate"><span class="pre">array</span></code>, (n_samples, n_categories)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.plot_gene_boxplot">
+<code class="sig-name descname">plot_gene_boxplot</code><span class="sig-paren">(</span><em class="sig-param">identifier</em>, <em class="sig-param">lookup_col=None</em>, <em class="sig-param">meta_field=None</em>, <em class="sig-param">extent=1.5</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.plot_gene_boxplot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.plot_gene_boxplot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a boxplot of gene expression, faceted on metadata field</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">identifier</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code></span></dt><dd><p>String identifier for gene. Default should be one of <cite>self.gene_meta.index</cite>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">lookup_col</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">None</span></code>)</span></dt><dd><p>Gene metadata column name. Will be used to lookup <cite>identifier</cite> param rather than index.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">meta_field</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">None</span></code>)</span></dt><dd><p>Sample metadata column name. Will make multiple boxplots for each metadata category.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">extent</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">float</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">1.5</span></code>)</span></dt><dd><p>Can be either <code class="docutils literal notranslate"><span class="pre">'min-max'</span></code>, with whiskers covering entire domain, or an number X where 
+entries outside X stds are shown as individual points.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">plot_gene_boxplot</span><span class="p">(</span><span class="s2">&quot;Gene A&quot;</span><span class="p">,</span> <span class="n">lookup_col</span><span class="o">=</span><span class="s2">&quot;gene_name&quot;</span><span class="p">,</span> <span class="n">meta_field</span><span class="o">=</span><span class="s2">&quot;cell_id&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">plot_gene_boxplot</span><span class="p">(</span><span class="s2">&quot;5270&quot;</span><span class="p">)</span> <span class="o">//</span> <span class="n">dsitribution</span> <span class="k">for</span> <span class="n">gene_id</span> <span class="o">==</span> <span class="s1">&#39;5270&#39;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">altair.Chart</span></code> object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.plot_meta_counts">
+<code class="sig-name descname">plot_meta_counts</code><span class="sig-paren">(</span><em class="sig-param">meta_field</em>, <em class="sig-param">normalize=False</em>, <em class="sig-param">sort_values=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.plot_meta_counts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.plot_meta_counts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a barplot of a metadata field counts in Dataset</p>
+<blockquote>
+<div><dl>
+<dt><code class="docutils literal notranslate"><span class="pre">meta_field</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code></span></dt><dd><p>Valid sample metadata column.</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">normalize</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">bool</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">False</span></code>)</span></dt><dd><blockquote>
+<div><p>Whether to show counts or noramlize to frequencies.</p>
+</div></blockquote>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">sort_values</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">bool</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">True</span></code>)</span></dt><dd><p>Whether to sort barchart by counts/frequencies.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">plot_meta_counts</span><span class="p">(</span><span class="s2">&quot;cell_id&quot;</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">//</span> <span class="n">barplot</span> <span class="n">of</span> <span class="n">cell_id</span> <span class="n">frequencies</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">altair.Chart</span></code> object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.sample_meta">
+<em class="property">property </em><code class="sig-name descname">sample_meta</code><a class="headerlink" href="#deep_lincs.dataset.Dataset.sample_meta" title="Permalink to this definition">¶</a></dt>
+<dd><p>A dataframe representing the per sample metadata</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.sample_rows">
+<code class="sig-name descname">sample_rows</code><span class="sig-paren">(</span><em class="sig-param">size</em>, <em class="sig-param">replace=False</em>, <em class="sig-param">meta_groups=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.sample_rows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.sample_rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Dataset of sampled profiles</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">size</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">int</span></code></span></dt><dd><p>Number of samples to return per meta grouping. Default is 
+to sample from all profiles.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">replace</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">bool</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">False</span></code>)</span></dt><dd><p>Sample with or without replacement.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">meta_groups</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">list</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">None</span></code>)</span></dt><dd><p>If provided, equal numbers of profiles are returned for each metadata grouping.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">sample_rows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">meta_groups</span><span class="o">=</span><span class="s2">&quot;cell_id&quot;</span><span class="p">)</span> 
+<span class="go">    // returns 5000 profiles for each cell_id in dataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">sample_rows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">meta_groups</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;cell_id&quot;</span><span class="p">,</span> <span class="s2">&quot;pert_type&quot;</span><span class="p">])</span>
+<span class="go">    // returns 5000 profiles for all groupings of cell_id and pert_type</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.select_meta">
+<code class="sig-name descname">select_meta</code><span class="sig-paren">(</span><em class="sig-param">meta_fields</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.select_meta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.select_meta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Dataset with select metadata fields.</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">meta_fields</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">list</span></code></span></dt><dd><p>Desired metadata columns.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span><span class="o">.</span><span class="n">select_meta</span><span class="p">([</span><span class="s2">&quot;cell_id&quot;</span><span class="p">,</span> <span class="s2">&quot;pert_id&quot;</span><span class="p">,</span> <span class="s2">&quot;moa&quot;</span><span class="p">])</span>
+<span class="go">    // returns dataset with only [&quot;cell_id&quot;, &quot;pert_id&quot;, &quot;moa&quot;] as metadata fields.</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.select_samples">
+<code class="sig-name descname">select_samples</code><span class="sig-paren">(</span><em class="sig-param">sample_ids</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.select_samples"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.select_samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Dataset with profiles selected by id</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">sample_ids</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">list</span></code>, character <code class="docutils literal notranslate"><span class="pre">array</span></code></span></dt><dd><p>Desired sample ids to filter dataset.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.set_categorical">
+<code class="sig-name descname">set_categorical</code><span class="sig-paren">(</span><em class="sig-param">colname</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.set_categorical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.set_categorical" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets sample metadata column as categorical</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">colname</span></code>: <code class="docutils literal notranslate"><span class="pre">str</span></code></dt><dd><p>Sample metadata column name.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.split">
+<code class="sig-name descname">split</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a tuple of Datasets, split by inclusion criteria</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">kwargs</span></code> :</dt><dd><p>Keyword args to subset data by specific features in sample metadata. 
+Each kwarg must follow the following. <code class="docutils literal notranslate"><span class="pre">keyword</span></code>: a column in metadata,
+<code class="docutils literal notranslate"><span class="pre">arg</span></code>: a str or list of values to filter from keyword field.</p>
+</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">pc3</span><span class="p">,</span> <span class="n">not_pc3</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cell_id</span><span class="o">=</span><span class="s2">&quot;PC3&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vcap_mcf7</span><span class="p">,</span> <span class="n">not_vcap_mcf7</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cell_id</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;VCAP&quot;</span><span class="p">,</span> <span class="s2">&quot;MCF7&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.to_tsv">
+<code class="sig-name descname">to_tsv</code><span class="sig-paren">(</span><em class="sig-param">out_dir</em>, <em class="sig-param">sep='\t'</em>, <em class="sig-param">prefix=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.to_tsv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.to_tsv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write Dataset object to a tsv file</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">out_dir</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code></span></dt><dd><p>Path to output directory.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">sep</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> (optional)</span></dt><dd><p>String of length 1. Field delimiter for the output file.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">prefix</span></code><span class="classifier"><code class="docutils literal notranslate"><span class="pre">str</span></code> (optional, default <code class="docutils literal notranslate"><span class="pre">None</span></code>)</span></dt><dd><p>Filename prefix.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="deep_lincs.dataset.Dataset.train_val_test_split">
+<code class="sig-name descname">train_val_test_split</code><span class="sig-paren">(</span><em class="sig-param">p1=0.2</em>, <em class="sig-param">p2=0.2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/deep_lincs/dataset/dataset.html#Dataset.train_val_test_split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#deep_lincs.dataset.Dataset.train_val_test_split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits dataset into training, validation, and test datasets</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">p1</span></code>: <code class="docutils literal notranslate"><span class="pre">float</span></code> (optional: default <code class="docutils literal notranslate"><span class="pre">0.2</span></code>)</dt><dd><p>Test size in first train/test split.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">p2</span></code>: <code class="docutils literal notranslate"><span class="pre">float</span></code> (optional: default <code class="docutils literal notranslate"><span class="pre">0.2</span></code>)</dt><dd><p>Validation size in remaining train/val split.</p>
+</dd>
+</dl>
+<p><code class="docutils literal notranslate"><span class="pre">train,</span> <span class="pre">val,</span> <span class="pre">test</span></code> : <code class="docutils literal notranslate"><span class="pre">tuple</span></code> of <code class="docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">DeepLINCS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">API Reference:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#dataset">Dataset</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">DeepLINCS: A framework for deep learning with LINCS L1000 Data</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Trevor Manz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/api.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

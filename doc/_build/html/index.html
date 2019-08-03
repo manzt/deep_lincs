@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>DeepLINCS: A framework for deep learning with LINCS L1000 Data &#8212; DeepLINCS 0.0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Guide" href="api.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="deeplincs-a-framework-for-deep-learning-with-lincs-l1000-data">
+<h1>DeepLINCS: A framework for deep learning with LINCS L1000 Data<a class="headerlink" href="#deeplincs-a-framework-for-deep-learning-with-lincs-l1000-data" title="Permalink to this headline">¶</a></h1>
+<p>DeepLINCS offers a variety of utilities for working with
+<a class="reference external" href="http://www.lincsproject.org/LINCS/tools/workflows/find-the-best-place-to-obtain-the-lincs-l1000-data">L1000 data</a>
+and training deep learning models.</p>
+<p>The class <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code>, built on <a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html">pandas dataframes</a>,
+offers methods to load, sample, filter, subset, and explore these data in memory.</p>
+<p>DeepLINCS also provides a wrapper around around <a class="reference external" href="https://www.tensorflow.org/beta">TensorFlow</a> to efficiently load a <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code> and train a variety of deep learning models.</p>
+<p>You can find the software <a class="reference external" href="https://github.com/manzt/deep_lincs">on github</a>.</p>
+<p><strong>Installation</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/manzt/deep_lincs.git <span class="o">&amp;&amp;</span> <span class="nb">cd</span> deep_lincs
+conda env create -f environment_gpu.yml <span class="c1"># or environment.yml</span>
+conda activate deep-lincs-gpu <span class="c1"># or deep-lincs if no GPU</span>
+</pre></div>
+</div>
+<p><strong>Downloading the data</strong></p>
+<p>The data for 1.3 million L1000 profiles are availabe <a class="reference external" href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE92742">on GEO</a>.
+The script <code class="docutils literal notranslate"><span class="pre">load_files.sh</span></code> fetches the <code class="docutils literal notranslate"><span class="pre">Level</span> <span class="pre">3</span></code> data along with all metadata available. The largest file is quite big (~50Gb) so please be patient.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> load_files.sh <span class="c1"># download raw data from GEO</span>
+</pre></div>
+</div>
+<p><strong>Getting started</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>jupyter lab <span class="c1"># get started in a notebook</span>
+</pre></div>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#dataset">Dataset</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">DeepLINCS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Guide</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="api.html" title="next chapter">API Guide</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Trevor Manz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

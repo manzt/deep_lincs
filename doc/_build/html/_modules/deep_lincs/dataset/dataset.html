@@ -1,0 +1,577 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>deep_lincs.dataset.dataset &#8212; DeepLINCS 0.0.1 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for deep_lincs.dataset.dataset</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="k">import</span> <span class="n">train_test_split</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">altair</span> <span class="k">as</span> <span class="nn">alt</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">.normalizers</span> <span class="k">import</span> <span class="n">get_norm_method</span>
+<span class="kn">from</span> <span class="nn">.tf_dataset_pipeline</span> <span class="k">import</span> <span class="n">prepare_tf_dataset</span>
+<span class="kn">from</span> <span class="nn">.load_yaml</span> <span class="k">import</span> <span class="n">yaml_to_dataframes</span>
+<span class="kn">from</span> <span class="nn">..plotting.plots</span> <span class="k">import</span> <span class="n">boxplot</span><span class="p">,</span> <span class="n">barplot</span>
+
+
+<div class="viewcode-block" id="Dataset"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset">[docs]</a><span class="k">class</span> <span class="nc">Dataset</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Represents an L1000 Dataset</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ``data`` : ``dataframe``, shape (n_samples, (n_genes + n_metadata_fields))</span>
+<span class="sd">            A sample by gene expression matrix padded to the right with per sample metadata.</span>
+<span class="sd">            Generally it is easiest to construct a Dataset from a class method, ``Dataset.from_yaml()`` or ``Dataset.from_dataframes()``.</span>
+<span class="sd">            </span>
+<span class="sd">    ``gene_meta`` : ``dataframe``, shape (n_genes, n_features)</span>
+<span class="sd">            Contains the metadata for each of the genes in the data matrix.</span>
+<span class="sd">            </span>
+<span class="sd">    ``n_genes`` : ``int``</span>
+<span class="sd">            Number of genes in expression matrix. This explicitly defines </span>
+<span class="sd">            the column index which divides the expression values and metadata.</span>
+<span class="sd">            </span>
+<span class="sd">    Properties</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ``data`` : ``dataframe``, shape (n_samples, n_genes)</span>
+<span class="sd">            Gene expression matrix as a dataframe. Shared indicies with `self.sample_meta` and `self.gene_meta`.</span>
+<span class="sd">            </span>
+<span class="sd">    ``sample_meta`` : ``dataframe``, shape (n_samples, n_metadata_features)</span>
+<span class="sd">            Per profile metadata. Row index same as ``self.data.index``.</span>
+<span class="sd">            </span>
+<span class="sd">    ``gene_meta`` : ``dataframe``, shape (n_genes, n_gene_features)</span>
+<span class="sd">            Gene metadata. Row index same as ``self.data.columns``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">gene_meta</span><span class="p">,</span> <span class="n">n_genes</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span> <span class="o">=</span> <span class="n">gene_meta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span> <span class="o">=</span> <span class="n">n_genes</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A dataframe representing the sample x gene expression matrix&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">sample_meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A dataframe representing the per sample metadata&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span> <span class="p">:]</span>
+
+<div class="viewcode-block" id="Dataset.from_dataframes"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.from_dataframes">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_dataframes</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_df</span><span class="p">,</span> <span class="n">sample_meta_df</span><span class="p">,</span> <span class="n">gene_meta_df</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dataset constructor method from multiple dataframes</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``data_df`` : dataframe, shape (n_samples, n_genes)</span>
+<span class="sd">                Contains the expression data from experiment. Must have </span>
+<span class="sd">                shared row index with ``sample_meta_df``.</span>
+
+<span class="sd">        ``sample_meta_df`` : ``dataframe``, shape (n_samples, n_meta_features)</span>
+<span class="sd">                Contains the metadata for each of the samples in experiment.</span>
+
+<span class="sd">        ``gene_meta_df`` : dataframe, shape (n_genes, n_gene_features)</span>
+<span class="sd">                Contains the metadata for each of the genes in experiment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sample_meta_df</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">gene_meta_df</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">gene_meta_df</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Dataset.from_yaml"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.from_yaml">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_yaml</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">sample_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">only_landmark</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dataset constructor method from yaml specification</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``path`` : ``str``</span>
+<span class="sd">                Valid string path to ``.yaml`` or ``.yml`` file.</span>
+<span class="sd">        </span>
+<span class="sd">        ``sample_ids`` : ``list`` (optional, default ``None``)</span>
+<span class="sd">                Unique sample ids to read from data and metadata files.</span>
+<span class="sd">                </span>
+<span class="sd">        ``only_landmark`` : ``bool`` (optional, default ``True``)</span>
+<span class="sd">                Whether to parse all genes or only the landmark.</span>
+<span class="sd">                </span>
+<span class="sd">        ``filter_kwargs`` :</span>
+<span class="sd">                Optional keyword args to subset data by specific features </span>
+<span class="sd">                in per sample metadata. Each kwarg must follow the following.</span>
+<span class="sd">                ``keyword`` - a column in metadata ``arg``     - a list </span>
+<span class="sd">                of values to filter from keyword field.</span>
+<span class="sd">                </span>
+<span class="sd">        &gt;&gt;&gt; Dataset.from_yaml(&quot;settings.yaml&quot;, cell_id=[&quot;MCF7&quot;, &quot;PC3&quot;], pert_id=[&quot;trt_cp&quot;]) </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_df</span><span class="p">,</span> <span class="n">sample_meta_df</span><span class="p">,</span> <span class="n">gene_meta_df</span> <span class="o">=</span> <span class="n">yaml_to_dataframes</span><span class="p">(</span>
+            <span class="n">path</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">,</span> <span class="n">only_landmark</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_kwargs</span>
+        <span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sample_meta_df</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">gene_meta_df</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">gene_meta_df</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Dataset.sample_rows"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.sample_rows">[docs]</a>    <span class="k">def</span> <span class="nf">sample_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">meta_groups</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a Dataset of sampled profiles</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``size`` : ``int``</span>
+<span class="sd">                Number of samples to return per meta grouping. Default is </span>
+<span class="sd">                to sample from all profiles.</span>
+<span class="sd">        </span>
+<span class="sd">        ``replace`` : ``bool`` (optional, default ``False``)</span>
+<span class="sd">                Sample with or without replacement. </span>
+<span class="sd">            </span>
+<span class="sd">        ``meta_groups`` : ``str`` or ``list`` (optional, default ``None``)</span>
+<span class="sd">                If provided, equal numbers of profiles are returned for each metadata grouping.</span>
+<span class="sd">                </span>
+<span class="sd">        &gt;&gt;&gt; dataset.sample_rows(size=5000, meta_groups=&quot;cell_id&quot;) </span>
+<span class="sd">            // returns 5000 profiles for each cell_id in dataset</span>
+<span class="sd">        &gt;&gt;&gt; dataset.sample_rows(size=5000, meta_groups=[&quot;cell_id&quot;, &quot;pert_type&quot;])</span>
+<span class="sd">            // returns 5000 profiles for all groupings of cell_id and pert_type</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sampled</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="n">replace</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">meta_groups</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">frac</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="n">replace</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">meta_groups</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="n">sampled</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.filter_rows"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.filter_rows">[docs]</a>    <span class="k">def</span> <span class="nf">filter_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a Dataset of filtered profiles</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``kwargs`` :</span>
+<span class="sd">                Keyword args to subset data by specific features in sample metadata. </span>
+<span class="sd">                Each kwarg must follow the following.``keyword``: a column in metadata, </span>
+<span class="sd">                ``arg``: a list of values to filter from keyword field.</span>
+<span class="sd">                </span>
+<span class="sd">        &gt;&gt;&gt; dataset.filter_rows(cell_id=[&quot;VCAP, PC3&quot;]) </span>
+<span class="sd">        &gt;&gt;&gt; dataset.filter_rows(cell_id=&quot;VCAP&quot;, pert_type=[&quot;ctl_vehicle&quot;, &quot;trt_cp&quot;])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">filtered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">colname</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">values</span><span class="p">]</span> <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span> <span class="k">else</span> <span class="n">values</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="n">filtered</span><span class="p">[</span><span class="n">filtered</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">values</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.select_meta"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.select_meta">[docs]</a>    <span class="k">def</span> <span class="nf">select_meta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta_fields</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a Dataset with select metadata fields.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``meta_fields`` : ``list``</span>
+<span class="sd">                Desired metadata columns.</span>
+<span class="sd">        </span>
+<span class="sd">        &gt;&gt;&gt; dataset.select_meta([&quot;cell_id&quot;, &quot;pert_id&quot;, &quot;moa&quot;])</span>
+<span class="sd">            // returns dataset with only [&quot;cell_id&quot;, &quot;pert_id&quot;, &quot;moa&quot;] as metadata fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[[</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="o">*</span><span class="n">meta_fields</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="n">selected</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.select_samples"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.select_samples">[docs]</a>    <span class="k">def</span> <span class="nf">select_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a Dataset with profiles selected by id</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``sample_ids`` : ``list``, character ``array``</span>
+<span class="sd">                Desired sample ids to filter dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">sample_ids</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Dataset.split"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.split">[docs]</a>    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a tuple of Datasets, split by inclusion criteria</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``kwargs`` :</span>
+<span class="sd">                Keyword args to subset data by specific features in sample metadata. </span>
+<span class="sd">                Each kwarg must follow the following. ``keyword``: a column in metadata,</span>
+<span class="sd">                ``arg``: a str or list of values to filter from keyword field.</span>
+<span class="sd">                    </span>
+<span class="sd">        &gt;&gt;&gt; pc3, not_pc3 = dataset.split(cell_id=&quot;PC3&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; vcap_mcf7, not_vcap_mcf7 = dataset.split(cell_id=[&quot;VCAP&quot;, &quot;MCF7&quot;])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;One keyword argument is required: Key must be a meta_data field.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">colname</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">values</span><span class="p">]</span> <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span> <span class="k">else</span> <span class="n">values</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Dataset.dropna"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.dropna">[docs]</a>    <span class="k">def</span> <span class="nf">dropna</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Drops profiles for which there is no metadata in subset</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``subset`` : ``str`` or ``list``</span>
+<span class="sd">                Metadata field or fields.</span>
+<span class="sd">        </span>
+<span class="sd">        ``inplace``: ``bool`` (optional, default: ``False``)</span>
+<span class="sd">                If True, do operation inplace and return None. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="n">subset</span> <span class="o">=</span> <span class="p">[</span><span class="n">subset</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inplace</span><span class="p">:</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="n">subset</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="n">subset</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+    
+<div class="viewcode-block" id="Dataset.set_categorical"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.set_categorical">[docs]</a>    <span class="k">def</span> <span class="nf">set_categorical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets sample metadata column as categorical</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``colname``: ``str``</span>
+<span class="sd">                Sample metadata column name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">colname</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Categorical</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">colname</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Dataset.normalize_by_gene"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.normalize_by_gene">[docs]</a>    <span class="k">def</span> <span class="nf">normalize_by_gene</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="s2">&quot;standard_scale&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Normalize expression by gene</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``normalizer`` : ``str`` or ``func`` (optional, default ``&#39;standard_scale&#39;``)</span>
+<span class="sd">                Method used normalise dataset. Valid str options are ``&#39;standard_scale&#39;`` </span>
+<span class="sd">                and ``&#39;z_score&#39;``. If a function is provided, it must take </span>
+<span class="sd">                one argument (``array``), and return an array of the same dimensions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">normalizer</span> <span class="o">=</span> <span class="n">get_norm_method</span><span class="p">(</span><span class="n">normalizer</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">]</span> <span class="o">=</span> <span class="n">normalizer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.train_val_test_split"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.train_val_test_split">[docs]</a>    <span class="k">def</span> <span class="nf">train_val_test_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">p2</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Splits dataset into training, validation, and test datasets</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``p1``: ``float`` (optional: default ``0.2``)</span>
+<span class="sd">            Test size in first train/test split.</span>
+<span class="sd">        ``p2``: ``float`` (optional: default ``0.2``)</span>
+<span class="sd">            Validation size in remaining train/val split.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``train, val, test`` : ``tuple`` of ``Dataset``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="n">p1</span><span class="p">)</span>
+        <span class="n">X_train</span><span class="p">,</span> <span class="n">X_val</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="n">p2</span><span class="p">)</span>
+        <span class="n">train</span> <span class="o">=</span> <span class="n">KerasDataset</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">)</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">KerasDataset</span><span class="p">(</span><span class="n">X_val</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">,</span> <span class="s2">&quot;validation&quot;</span><span class="p">)</span>
+        <span class="n">test</span> <span class="o">=</span> <span class="n">KerasDataset</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">train</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">test</span></div>
+
+<div class="viewcode-block" id="Dataset.to_tsv"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.to_tsv">[docs]</a>    <span class="k">def</span> <span class="nf">to_tsv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write Dataset object to a tsv file</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``out_dir`` : ``str``</span>
+<span class="sd">            Path to output directory.</span>
+<span class="sd">            </span>
+<span class="sd">        ``sep`` : ``str`` (optional)</span>
+<span class="sd">            String of length 1. Field delimiter for the output file.</span>
+<span class="sd">            </span>
+<span class="sd">        ``prefix`` : ``str`` (optional, default ``None``)</span>
+<span class="sd">            Filename prefix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># create dirs if non-existent</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}</span><span class="s2">_&quot;</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">fpaths</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}{suf}</span><span class="s2">.tsv&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">suf</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;sample_meta&quot;</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">fpaths</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_meta</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">fpaths</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.one_hot_encode"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.one_hot_encode">[docs]</a>    <span class="k">def</span> <span class="nf">one_hot_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta_field</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a one-hot vector for a metadata field for all profiles</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``meta_field`` : ``str``</span>
+<span class="sd">            Valid sample metadata column.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">        --------</span>
+<span class="sd">        ``one_hot`` : ``array``, (n_samples, n_categories)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">one_hot</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_dummies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_meta</span><span class="p">[</span><span class="n">meta_field</span><span class="p">])</span><span class="o">.</span><span class="n">values</span>
+        <span class="k">return</span> <span class="n">one_hot</span></div>
+
+<div class="viewcode-block" id="Dataset.plot_gene_boxplot"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.plot_gene_boxplot">[docs]</a>    <span class="k">def</span> <span class="nf">plot_gene_boxplot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">,</span> <span class="n">lookup_col</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">meta_field</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a boxplot of gene expression, faceted on metadata field</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``identifier`` : ``str``</span>
+<span class="sd">                String identifier for gene. Default should be one of `self.gene_meta.index`.</span>
+<span class="sd">        </span>
+<span class="sd">        ``lookup_col`` : ``str`` (optional, default ``None``)</span>
+<span class="sd">                Gene metadata column name. Will be used to lookup `identifier` param rather than index.</span>
+<span class="sd">                </span>
+<span class="sd">        ``meta_field`` : ``str`` (optional, default ``None``)</span>
+<span class="sd">                Sample metadata column name. Will make multiple boxplots for each metadata category.</span>
+<span class="sd">                           </span>
+<span class="sd">        ``extent`` : ``str`` or ``float`` (optional, default ``1.5``)</span>
+<span class="sd">                Can be either ``&#39;min-max&#39;``, with whiskers covering entire domain, or an number X where </span>
+<span class="sd">                entries outside X stds are shown as individual points.</span>
+<span class="sd">                </span>
+<span class="sd">        &gt;&gt;&gt; dataset.plot_gene_boxplot(&quot;Gene A&quot;, lookup_col=&quot;gene_name&quot;, meta_field=&quot;cell_id&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; dataset.plot_gene_boxplot(&quot;5270&quot;) // dsitribution for gene_id == &#39;5270&#39;</span>
+<span class="sd"> </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``altair.Chart`` object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">lookup_col</span><span class="p">:</span>
+            <span class="n">gene_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="p">[</span><span class="n">lookup_col</span><span class="p">]</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">gene_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+            
+        <span class="n">gene_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="p">[</span><span class="n">gene_mask</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[[</span><span class="n">gene_index</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_meta</span><span class="o">.</span><span class="n">columns</span><span class="p">]]</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">gene_index</span><span class="p">:</span> <span class="n">identifier</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">boxplot</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">meta_field</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">extent</span><span class="o">=</span><span class="n">extent</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.plot_meta_counts"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.plot_meta_counts">[docs]</a>    <span class="k">def</span> <span class="nf">plot_meta_counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta_field</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_values</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a barplot of a metadata field counts in Dataset</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``meta_field`` : ``str``</span>
+<span class="sd">                Valid sample metadata column.</span>
+
+<span class="sd">       ``normalize`` : ``bool`` (optional, default ``False``)</span>
+<span class="sd">                Whether to show counts or noramlize to frequencies.</span>
+<span class="sd">                           </span>
+<span class="sd">        ``sort_values`` : ``bool`` (optional, default ``True``)</span>
+<span class="sd">                Whether to sort barchart by counts/frequencies.</span>
+<span class="sd">                </span>
+<span class="sd">        &gt;&gt;&gt; dataset.plot_meta_counts(&quot;cell_id&quot;, normalize=True) // barplot of cell_id frequencies</span>
+<span class="sd">                </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``altair.Chart`` object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_meta</span><span class="p">[</span><span class="n">meta_field</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">(</span><span class="n">normalize</span><span class="o">=</span><span class="n">normalize</span><span class="p">)</span>
+        <span class="n">colname</span> <span class="o">=</span> <span class="s2">&quot;counts&quot;</span> <span class="k">if</span> <span class="n">normalize</span> <span class="ow">is</span> <span class="kc">False</span> <span class="k">else</span> <span class="s2">&quot;frequency&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">meta_field</span><span class="p">:</span> <span class="n">counts</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">colname</span><span class="p">:</span> <span class="n">counts</span><span class="o">.</span><span class="n">values</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">barplot</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">meta_field</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">colname</span><span class="p">)</span></div>
+    
+<div class="viewcode-block" id="Dataset.copy"><a class="viewcode-back" href="../../../api.html#deep_lincs.dataset.Dataset.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copies Dataset to a new object&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">)</span></div>
+    
+    <span class="k">def</span> <span class="nf">_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Dataset</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_meta</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_genes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">nsamples</span><span class="p">,</span> <span class="n">ngenes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;&lt;L1000 Dataset: (samples: </span><span class="si">{nsamples:,}</span><span class="s2">, genes: </span><span class="si">{ngenes:,}</span><span class="s2">)&gt;&quot;</span></div>
+
+
+<span class="k">class</span> <span class="nc">KerasDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Represents an L1000 Dataset to be injested into Keras pipeline    </span>
+<span class="sd">        </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ``data`` : ``dataframe``, shape (n_samples, (n_genes + n_metadata_fields))</span>
+<span class="sd">            A sample by gene expression matrix padded to the right with per sample metadata.</span>
+<span class="sd">            </span>
+<span class="sd">    ``gene_meta`` : ``dataframe``, shape (n_genes, n_features)</span>
+<span class="sd">            Contains the metadata for each of the genes in the data matrix.</span>
+
+<span class="sd">    ``n_genes`` : ``int``</span>
+<span class="sd">            Number of genes in expression matrix. This explicitly defines </span>
+<span class="sd">            the column index which divides the expression values and metadata.</span>
+<span class="sd">                </span>
+<span class="sd">    ``name`` : ``str``</span>
+<span class="sd">            Identifier for what type of dataset (``&#39;train&#39;``, ``&#39;validation&#39;``, ``&#39;test&#39;``)</span>
+<span class="sd">        </span>
+<span class="sd">    Properties</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ``data`` : ``dataframe``, shape (n_samples, n_genes)</span>
+<span class="sd">            Gene expression matrix as a dataframe. Shared indicies with `self.sample_meta` and `self.gene_meta`.</span>
+<span class="sd">    </span>
+<span class="sd">    ``sample_meta`` : ``dataframe``, shape (n_samples, n_metadata_features)</span>
+<span class="sd">            Per profile metadata. Row index same as ``self.data.index``.</span>
+
+<span class="sd">    ``gene_meta`` : ``dataframe``, shape (n_genes, n_gene_features)</span>
+<span class="sd">            Gene metadata. Row index same as ``self.data.columns``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_valid_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="s2">&quot;validation&quot;</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">gene_meta</span><span class="p">,</span> <span class="n">n_genes</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">KerasDataset</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">gene_meta</span><span class="p">,</span> <span class="n">n_genes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valid_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;LINCSKerasDataset &#39;name&#39; must be one of </span><span class="si">{self._valid_names}</span><span class="s2">, not &#39;</span><span class="si">{name}</span><span class="s2">&#39;.&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shuffle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">repeat</span> <span class="o">=</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="s2">&quot;train&quot;</span> <span class="k">else</span> <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">batch_normalize</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Converts Dataset to tf.data.Dataset to be ingested by Keras</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``target`` : ``str``</span>
+<span class="sd">                Valid sample metadata column or ``&#39;self&#39;``. If ``&#39;self&#39;``, the outputs are designed to</span>
+<span class="sd">                be the same as the inputs (i.e. an autoencoder).</span>
+<span class="sd">                </span>
+<span class="sd">        ``batch_size`` : ``int`` (optional, default ``64``)</span>
+<span class="sd">                Size of batches during training and testing.</span>
+
+<span class="sd">        ``batch_normalize`` : ``str`` (optional, default ``None``)</span>
+<span class="sd">            Whether to batch normalize. Can be one of ``&#39;standard_scale&#39;`` or ``&#39;z_score&#39;``.</span>
+
+<span class="sd">        &gt;&gt;&gt; keras_dataset(&quot;cell_id&quot;, batch_size=128) ==&gt; TensorFlow prefetch-dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tf_dataset : ``tensorflow.data.Dataset``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_target_as_tf_dataset</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">prepare_tf_dataset</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">zip</span><span class="p">((</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)),</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shuffle</span><span class="p">,</span>
+            <span class="n">repeat</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">repeat</span><span class="p">,</span>
+            <span class="n">batch_normalize</span><span class="o">=</span><span class="n">batch_normalize</span><span class="p">,</span>
+            <span class="n">shuffle_buffer_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">tf_dataset</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_lincs_dataset</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">lincs_dataset</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor from base Dataset class</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ``name`` : ``str``</span>
+<span class="sd">            Type of dataset. Must be one of ``&#39;train&#39;``, ``&#39;validation&#39;``, or ``&#39;test&#39;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">lincs_dataset</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">lincs_dataset</span><span class="o">.</span><span class="n">gene_meta</span><span class="p">,</span> <span class="n">lincs_dataset</span><span class="o">.</span><span class="n">n_genes</span><span class="p">,</span> <span class="n">name</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_target_as_tf_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="o">==</span> <span class="s2">&quot;self&quot;</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">one_hot_encode</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">one_hot_encode</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">target</span><span class="p">)</span>
+        <span class="n">y_tf_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">y_tf_dataset</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">nsamples</span><span class="p">,</span> <span class="n">ngenes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;&lt; </span><span class="si">{self.name}</span><span class="s2"> Dataset: (samples: </span><span class="si">{nsamples:,}</span><span class="s2">, genes: </span><span class="si">{ngenes:,}</span><span class="s2">)&gt;&quot;</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">DeepLINCS</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">API Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Guide</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Trevor Manz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
