@@ -27,7 +27,7 @@ class Dataset:
             Number of genes in expression matrix. This explicitly defines 
             the column index which divides the expression values and metadata.
             
-    Properties
+    Attributes
     ----------
     ``data`` : ``dataframe``, shape (n_samples, n_genes)
             Gene expression matrix as a dataframe. Shared indicies with `self.sample_meta` and `self.gene_meta`.
@@ -291,8 +291,8 @@ class Dataset:
         ``meta_field`` : ``str``
             Valid sample metadata column.
         
-        Returns:
-        --------
+        Returns
+        -------
         ``one_hot`` : ``array``, (n_samples, n_categories)
         """
         one_hot = pd.get_dummies(self.sample_meta[meta_field]).values
