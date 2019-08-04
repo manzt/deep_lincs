@@ -16,27 +16,27 @@ class Dataset:
 
     Parameters
     ----------
-    ``data`` : ``dataframe``, shape (n_samples, (n_genes + n_metadata_fields))
+    data : ``dataframe``, shape (n_samples, (n_genes + n_metadata_fields))
             A sample by gene expression matrix padded to the right with per sample metadata.
             Generally it is easiest to construct a Dataset from a class method, ``Dataset.from_yaml()`` or ``Dataset.from_dataframes()``.
             
-    ``gene_meta`` : ``dataframe``, shape (n_genes, n_features)
+    gene_meta : ``dataframe``, shape (n_genes, n_features)
             Contains the metadata for each of the genes in the data matrix.
             
-    ``n_genes`` : ``int``
+    n_genes : ``int``
             Number of genes in expression matrix. This explicitly defines 
             the column index which divides the expression values and metadata.
-            
-    Properties
+    
+    Attributes
     ----------
-    ``data`` : ``dataframe``, shape (n_samples, n_genes)
+    data : ``dataframe``, shape (n_samples, n_genes)
             Gene expression matrix as a dataframe. Shared indicies with `self.sample_meta` and `self.gene_meta`.
             
-    ``sample_meta`` : ``dataframe``, shape (n_samples, n_metadata_features)
-            Per profile metadata. Row index same as ``self.data.index``.
+    sample_meta : ``dataframe``, shape (n_samples, n_metadata_features)
+            Per profile metadata. Row index same as ``Dataset.data.index``.
             
-    ``gene_meta`` : ``dataframe``, shape (n_genes, n_gene_features)
-            Gene metadata. Row index same as ``self.data.columns``.
+    gene_meta : ``dataframe``, shape (n_genes, n_gene_features)
+            Gene metadata. Row index same as ``Dataset.data.columns``.
     """
     def __init__(self, data, gene_meta, n_genes):
         self._data = data
@@ -59,14 +59,14 @@ class Dataset:
 
         Parameters
         ----------
-        ``data_df`` : dataframe, shape (n_samples, n_genes)
+        data_df : dataframe, shape (n_samples, n_genes)
                 Contains the expression data from experiment. Must have 
                 shared row index with ``sample_meta_df``.
 
-        ``sample_meta_df`` : ``dataframe``, shape (n_samples, n_meta_features)
+        sample_meta_df : ``dataframe``, shape (n_samples, n_meta_features)
                 Contains the metadata for each of the samples in experiment.
 
-        ``gene_meta_df`` : dataframe, shape (n_genes, n_gene_features)
+        gene_meta_df : dataframe, shape (n_genes, n_gene_features)
                 Contains the metadata for each of the genes in experiment.
         """
         data = data_df.join(sample_meta_df)
@@ -78,22 +78,27 @@ class Dataset:
 
         Parameters
         ----------
-        ``path`` : ``str``
+        path : ``str``
                 Valid string path to ``.yaml`` or ``.yml`` file.
         
-        ``sample_ids`` : ``list`` (optional, default ``None``)
+        sample_ids : ``list`` (optional, default ``None``)
                 Unique sample ids to read from data and metadata files.
                 
-        ``only_landmark`` : ``bool`` (optional, default ``True``)
+        only_landmark : ``bool`` (optional, default ``True``)
                 Whether to parse all genes or only the landmark.
                 
-        ``filter_kwargs`` :
+        filter_kwargs :
                 Optional keyword args to subset data by specific features 
                 in per sample metadata. Each kwarg must follow the following.
                 ``keyword`` - a column in metadata ``arg``     - a list 
                 of values to filter from keyword field.
                 
+        Returns
+        -------
+            ``Dataset``
+
         >>> Dataset.from_yaml("settings.yaml", cell_id=["MCF7", "PC3"], pert_id=["trt_cp"]) 
+
         """
         data_df, sample_meta_df, gene_meta_df = yaml_to_dataframes(
             path, sample_ids, only_landmark, **filter_kwargs
@@ -106,16 +111,20 @@ class Dataset:
         
         Parameters
         ----------
-        ``size`` : ``int``
+        size : ``int``
                 Number of samples to return per meta grouping. Default is 
                 to sample from all profiles.
         
-        ``replace`` : ``bool`` (optional, default ``False``)
+        replace : ``bool`` (optional, default ``False``)
                 Sample with or without replacement. 
             
-        ``meta_groups`` : ``str`` or ``list`` (optional, default ``None``)
+        meta_groups : ``str`` or ``list`` (optional, default ``None``)
                 If provided, equal numbers of profiles are returned for each metadata grouping.
-                
+        
+        Returns
+        -------
+            ``Dataset``
+            
         >>> dataset.sample_rows(size=5000, meta_groups="cell_id") 
             // returns 5000 profiles for each cell_id in dataset
         >>> dataset.sample_rows(size=5000, meta_groups=["cell_id", "pert_type"])
@@ -135,9 +144,9 @@ class Dataset:
         
         Parameters
         ----------
-        ``kwargs`` :
+        kwargs :
                 Keyword args to subset data by specific features in sample metadata. 
-                Each kwarg must follow the following.``keyword``: a column in metadata, 
+                Each kwarg must follow the following. ``keyword``: a column in metadata, 
                 ``arg``: a list of values to filter from keyword field.
                 
         >>> dataset.filter_rows(cell_id=["VCAP, PC3"]) 
@@ -154,7 +163,7 @@ class Dataset:
         
         Parameters
         ----------
-        ``meta_fields`` : ``list``
+        meta_fields : ``list``
                 Desired metadata columns.
         
         >>> dataset.select_meta(["cell_id", "pert_id", "moa"])
@@ -168,7 +177,7 @@ class Dataset:
         
         Parameters
         ----------
-        ``sample_ids`` : ``list``, character ``array``
+        sample_ids : ``list``, character ``array``
                 Desired sample ids to filter dataset.
         """
         mask = self._data.isin(sample_ids)
@@ -179,11 +188,14 @@ class Dataset:
         
         Parameters
         ----------
-        ``kwargs`` :
+        kwargs :
                 Keyword args to subset data by specific features in sample metadata. 
                 Each kwarg must follow the following. ``keyword``: a column in metadata,
                 ``arg``: a str or list of values to filter from keyword field.
-                    
+        
+        Returns
+        -------
+            ``Dataset``, ``Dataset``
         >>> pc3, not_pc3 = dataset.split(cell_id="PC3")
         >>> vcap_mcf7, not_vcap_mcf7 = dataset.split(cell_id=["VCAP", "MCF7"])
         """
@@ -202,10 +214,10 @@ class Dataset:
         
         Parameters
         ----------
-        ``subset`` : ``str`` or ``list``
+        subset : ``str`` or ``list``
                 Metadata field or fields.
         
-        ``inplace``: ``bool`` (optional, default: ``False``)
+        inplace : ``bool`` (optional, default: ``False``)
                 If True, do operation inplace and return None. 
         """
         if type(subset) is str:
@@ -216,24 +228,24 @@ class Dataset:
         else:
             self._data.dropna(subset=subset, inplace=True)
     
-    def set_categorical(self, colname):
+    def set_categorical(self, meta_field):
         """Sets sample metadata column as categorical
         
         Parameters
         ----------
-        ``colname``: ``str``
+        meta_field : ``str``
                 Sample metadata column name.
         """
-        self._data[colname] = pd.Categorical(self._data[colname])
+        self._data[meta_field] = pd.Categorical(self._data[meta_field])
 
     def normalize_by_gene(self, normalizer="standard_scale"):
         """Normalize expression by gene
         
         Parameters
         ----------
-        ``normalizer`` : ``str`` or ``func`` (optional, default ``'standard_scale'``)
-                Method used normalise dataset. Valid str options are ``'standard_scale'`` 
-                and ``'z_score'``. If a function is provided, it must take 
+        normalizer : ``str`` or ``func`` (optional, default 'standard_scale')
+                Method used normalise dataset. Valid str options are 'standard_scale' 
+                and 'z_score'. If a function is provided, it must take 
                 one argument (``array``), and return an array of the same dimensions.
         """
         normalizer = get_norm_method(normalizer)
@@ -244,14 +256,15 @@ class Dataset:
         
         Parameters
         ----------
-        ``p1``: ``float`` (optional: default ``0.2``)
+        p1: ``float`` (optional: default ``0.2``)
             Test size in first train/test split.
-        ``p2``: ``float`` (optional: default ``0.2``)
+
+        p2: ``float`` (optional: default ``0.2``)
             Validation size in remaining train/val split.
             
         Returns
         -------
-        ``train, val, test`` : ``tuple`` of ``Dataset``
+        train, val, test : ``tuple`` of ``Dataset``
         """
         X_train, X_test = train_test_split(self._data, test_size=p1)
         X_train, X_val = train_test_split(X_train, test_size=p2)
@@ -265,13 +278,13 @@ class Dataset:
         
         Parameters
         ----------
-        ``out_dir`` : ``str``
+        out_dir : ``str``
             Path to output directory.
             
-        ``sep`` : ``str`` (optional)
+        sep : ``str`` (optional)
             String of length 1. Field delimiter for the output file.
             
-        ``prefix`` : ``str`` (optional, default ``None``)
+        prefix : ``str`` (optional, default ``None``)
             Filename prefix.
         """
         os.makedirs(out_dir, exist_ok=True) # create dirs if non-existent
@@ -288,12 +301,12 @@ class Dataset:
         
         Parameters
         ----------
-        ``meta_field`` : ``str``
+        meta_field : ``str``
             Valid sample metadata column.
         
-        Returns:
-        --------
-        ``one_hot`` : ``array``, (n_samples, n_categories)
+        Returns
+        -------
+        one_hot : ``array``, (n_samples, n_categories)
         """
         one_hot = pd.get_dummies(self.sample_meta[meta_field]).values
         return one_hot
@@ -305,25 +318,24 @@ class Dataset:
         
         Parameters
         ----------
-        ``identifier`` : ``str``
+        identifier : ``str``
                 String identifier for gene. Default should be one of `self.gene_meta.index`.
         
-        ``lookup_col`` : ``str`` (optional, default ``None``)
+        lookup_col : ``str`` (optional, default ``None``)
                 Gene metadata column name. Will be used to lookup `identifier` param rather than index.
                 
-        ``meta_field`` : ``str`` (optional, default ``None``)
+        meta_field : ``str`` (optional, default ``None``)
                 Sample metadata column name. Will make multiple boxplots for each metadata category.
                            
-        ``extent`` : ``str`` or ``float`` (optional, default ``1.5``)
+        extent : ``str`` or ``float`` (optional, default ``1.5``)
                 Can be either ``'min-max'``, with whiskers covering entire domain, or an number X where 
                 entries outside X stds are shown as individual points.
                 
-        >>> dataset.plot_gene_boxplot("Gene A", lookup_col="gene_name", meta_field="cell_id")
-        >>> dataset.plot_gene_boxplot("5270") // dsitribution for gene_id == '5270'
- 
         Returns
         -------
         ``altair.Chart`` object
+        >>> dataset.plot_gene_boxplot("Gene A", lookup_col="gene_name", meta_field="cell_id")
+        >>> dataset.plot_gene_boxplot("5270") // dsitribution for gene_id == '5270') 
         """
         if lookup_col:
             gene_mask = self.gene_meta[lookup_col] == str(identifier)
@@ -340,13 +352,13 @@ class Dataset:
         
         Parameters
         ----------
-        ``meta_field`` : ``str``
+        meta_field : ``str``
                 Valid sample metadata column.
 
-       ``normalize`` : ``bool`` (optional, default ``False``)
+       normalize : ``bool`` (optional, default ``False``)
                 Whether to show counts or noramlize to frequencies.
                            
-        ``sort_values`` : ``bool`` (optional, default ``True``)
+        sort_values : ``bool`` (optional, default ``True``)
                 Whether to sort barchart by counts/frequencies.
                 
         >>> dataset.plot_meta_counts("cell_id", normalize=True) // barplot of cell_id frequencies
@@ -380,28 +392,28 @@ class KerasDataset(Dataset):
         
     Parameters
     ----------
-    ``data`` : ``dataframe``, shape (n_samples, (n_genes + n_metadata_fields))
+    data : ``dataframe``, shape (n_samples, (n_genes + n_metadata_fields))
             A sample by gene expression matrix padded to the right with per sample metadata.
             
-    ``gene_meta`` : ``dataframe``, shape (n_genes, n_features)
+    gene_meta : ``dataframe``, shape (n_genes, n_features)
             Contains the metadata for each of the genes in the data matrix.
 
-    ``n_genes`` : ``int``
+    n_genes : ``int``
             Number of genes in expression matrix. This explicitly defines 
             the column index which divides the expression values and metadata.
                 
-    ``name`` : ``str``
+    name : ``str``
             Identifier for what type of dataset (``'train'``, ``'validation'``, ``'test'``)
         
     Properties
     ----------
-    ``data`` : ``dataframe``, shape (n_samples, n_genes)
+    data : ``dataframe``, shape (n_samples, n_genes)
             Gene expression matrix as a dataframe. Shared indicies with `self.sample_meta` and `self.gene_meta`.
     
-    ``sample_meta`` : ``dataframe``, shape (n_samples, n_metadata_features)
+    sample_meta : ``dataframe``, shape (n_samples, n_metadata_features)
             Per profile metadata. Row index same as ``self.data.index``.
 
-    ``gene_meta`` : ``dataframe``, shape (n_genes, n_gene_features)
+    gene_meta : ``dataframe``, shape (n_genes, n_gene_features)
             Gene metadata. Row index same as ``self.data.columns``.
     """
     _valid_names = ["train", "validation", "test"]
@@ -420,14 +432,14 @@ class KerasDataset(Dataset):
 
         Parameters
         ----------
-        ``target`` : ``str``
+        target : ``str``
                 Valid sample metadata column or ``'self'``. If ``'self'``, the outputs are designed to
                 be the same as the inputs (i.e. an autoencoder).
                 
-        ``batch_size`` : ``int`` (optional, default ``64``)
+        batch_size : ``int`` (optional, default ``64``)
                 Size of batches during training and testing.
 
-        ``batch_normalize`` : ``str`` (optional, default ``None``)
+        batch_normalize : ``str`` (optional, default ``None``)
             Whether to batch normalize. Can be one of ``'standard_scale'`` or ``'z_score'``.
 
         >>> keras_dataset("cell_id", batch_size=128) ==> TensorFlow prefetch-dataset.
@@ -454,7 +466,7 @@ class KerasDataset(Dataset):
 
         Parameters
         ----------
-        ``name`` : ``str``
+        name : ``str``
             Type of dataset. Must be one of ``'train'``, ``'validation'``, or ``'test'``.
         """
         return cls(
