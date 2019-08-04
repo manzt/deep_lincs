@@ -35,10 +35,21 @@ extensions = [
         'sphinx.ext.autodoc',
         'sphinx.ext.autosummary',
         'sphinx.ext.githubpages',
+        'numpydoc.numpydoc',
 ]
+
+autodoc_default_flags = ['members', 'inherited-members']
+
+autodoc_member_order = 'groupwise'
+
+# generate autosummary even if no references
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# source_suffix = ['.rst', '.md']
+source_suffix = '.rst'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -62,3 +73,6 @@ html_static_path = ['_static']
 # https://github.com/rtfd/sphinx_rtd_theme/issues/117
 def setup(app):
     app.add_stylesheet('theme_overrides.css')
+
+# Hide extra class members
+numpydoc_show_class_members = False
