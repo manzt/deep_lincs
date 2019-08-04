@@ -26,7 +26,7 @@ class Dataset:
     n_genes : ``int``
             Number of genes in expression matrix. This explicitly defines 
             the column index which divides the expression values and metadata.
-    
+
     Attributes
     ----------
     data : ``dataframe``, shape (n_samples, n_genes)
@@ -281,7 +281,7 @@ class Dataset:
             
         Returns
         -------
-        train, val, test : ``tuple`` of ``Dataset``
+            ``tuple`` of ``Dataset``'s
         """
         X_train, X_test = train_test_split(self._data, test_size=p1)
         X_train, X_val = train_test_split(X_train, test_size=p2)
@@ -323,7 +323,8 @@ class Dataset:
         
         Returns
         -------
-        one_hot : ``array``, (n_samples, n_categories)
+        one_hot : 
+            ``array``, (n_samples, n_categories)
         """
         one_hot = pd.get_dummies(self.sample_meta[meta_field]).values
         return one_hot
@@ -350,7 +351,7 @@ class Dataset:
                 
         Returns
         -------
-        ``altair.Chart`` object
+            ``altair.Chart`` object
         
         >>> dataset.plot_gene_boxplot("Gene A", lookup_col="gene_name", meta_field="cell_id")
         >>> dataset.plot_gene_boxplot("5270") // dsitribution for gene_id == '5270') 
