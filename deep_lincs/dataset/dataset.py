@@ -148,6 +148,10 @@ class Dataset:
                 Keyword args to subset data by specific features in sample metadata. 
                 Each kwarg must follow the following. ``keyword``: a column in metadata, 
                 ``arg``: a list of values to filter from keyword field.
+        
+        Returns
+        -------
+            ``Dataset``
                 
         >>> dataset.filter_rows(cell_id=["VCAP, PC3"]) 
         >>> dataset.filter_rows(cell_id="VCAP", pert_type=["ctl_vehicle", "trt_cp"])
@@ -165,6 +169,10 @@ class Dataset:
         ----------
         meta_fields : ``list``
                 Desired metadata columns.
+                
+        Returns
+        -------
+            ``Dataset``
         
         >>> dataset.select_meta(["cell_id", "pert_id", "moa"])
             // returns dataset with only ["cell_id", "pert_id", "moa"] as metadata fields.
@@ -179,6 +187,10 @@ class Dataset:
         ----------
         sample_ids : ``list``, character ``array``
                 Desired sample ids to filter dataset.
+        
+        Returns
+        -------
+            ``Dataset``
         """
         mask = self._data.isin(sample_ids)
         return self._copy(self._data[mask])
@@ -196,6 +208,7 @@ class Dataset:
         Returns
         -------
             ``Dataset``, ``Dataset``
+            
         >>> pc3, not_pc3 = dataset.split(cell_id="PC3")
         >>> vcap_mcf7, not_vcap_mcf7 = dataset.split(cell_id=["VCAP", "MCF7"])
         """
@@ -247,6 +260,10 @@ class Dataset:
                 Method used normalise dataset. Valid str options are 'standard_scale' 
                 and 'z_score'. If a function is provided, it must take 
                 one argument (``array``), and return an array of the same dimensions.
+        
+        Returns
+        -------
+            ``None``
         """
         normalizer = get_norm_method(normalizer)
         self._data.iloc[:, : self.n_genes] = normalizer(self.data)
@@ -256,10 +273,10 @@ class Dataset:
         
         Parameters
         ----------
-        p1: ``float`` (optional: default ``0.2``)
+        p1 : ``float`` (optional: default ``0.2`` )
             Test size in first train/test split.
 
-        p2: ``float`` (optional: default ``0.2``)
+        p2 : ``float`` (optional: default ``0.2`` )
             Validation size in remaining train/val split.
             
         Returns
@@ -334,6 +351,7 @@ class Dataset:
         Returns
         -------
         ``altair.Chart`` object
+        
         >>> dataset.plot_gene_boxplot("Gene A", lookup_col="gene_name", meta_field="cell_id")
         >>> dataset.plot_gene_boxplot("5270") // dsitribution for gene_id == '5270') 
         """
@@ -360,12 +378,12 @@ class Dataset:
                            
         sort_values : ``bool`` (optional, default ``True``)
                 Whether to sort barchart by counts/frequencies.
-                
-        >>> dataset.plot_meta_counts("cell_id", normalize=True) // barplot of cell_id frequencies
-                
+                               
         Returns
         -------
         ``altair.Chart`` object
+        
+        >>> dataset.plot_meta_counts("cell_id", normalize=True) // barplot of cell_id frequencies
         """
         counts = self.sample_meta[meta_field].value_counts(normalize=normalize)
         colname = "counts" if normalize is False else "frequency"
