@@ -23,8 +23,6 @@ author = 'Trevor Manz'
 # The full version, including alpha/beta/rc tags
 release = '0.0.2'
 
-needs_sphinx = '2.0'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -40,7 +38,7 @@ extensions = [
         'numpydoc.numpydoc',
 ]
 
-autodoc_default_options = {'members': True, 'inherited-members': True}
+autodoc_default_flags = ['members', 'inherited-members']
 
 autodoc_member_order = 'groupwise'
 
