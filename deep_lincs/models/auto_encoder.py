@@ -12,6 +12,43 @@ from .metrics import PearsonsR
 
 
 class AutoEncoder(BaseNetwork):
+    """Represents an simple autoencoder
+    
+    Parameters
+    ----------
+    dataset : ``Dataset``
+            An instance of a ``Dataset`` intended to train and evaluate a model.
+            
+    test_sizes : tuple, (optional, default ( ``0.2`` , ``0.2`` ))
+            Size of test splits for dividing the dataset into training, validation, and, testing
+
+    Attributes
+    ----------
+    
+    encoder : ``tensorflow.keras.Model``
+            Encoder for the AutoEncoder model. 
+            
+    targets : ``list(str)``
+            Targets for model.
+            
+    train : ``Dataset``
+            Dataset used to train the model.
+    
+    val : ``Dataset``
+            Dataset used during training as validation.
+    
+    test : ``Dataset``
+            Dataset used to evaluate the model.
+            
+    model : ``tensorflow.keras.Model``
+            Compiled and trained model.
+    
+    in_size : ``int`` 
+            Size of inputs (generally 978 for L1000 landmark genes).
+    
+    out_size : ``int``
+            Same as input size since model is an autoencoder.
+    """
     def __init__(self, dataset, **kwargs):
         super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
         self.in_size = dataset.data.shape[1]
@@ -27,6 +64,32 @@ class AutoEncoder(BaseNetwork):
         optimizer="adam",
         l1_reg=None,
     ):
+        """Defines how model is built and compiled
+
+        Parameters
+        ----------
+        hidden_layers : ``list(int)``
+                A list describing the size of the hidden layers.
+
+        dropout_rate : ``float`` (optional: default ``0.0``)
+                Dropout rate used during training. Applied to all hidden layers.
+
+        activation : ``str``, (optional: default ``"relu"``)
+                Activation function used in hidden layers.
+                
+        final_activation : ``str`` (optional: default ``"softmax"``)
+                Activation function used in final layer.
+                
+        optimizer : ``str``, (optional: default ``"adam"``)
+                Optimizer used during training.
+                
+        l1_reg : ``float`` (optional: default ``None``)
+                Level of L1 regularization applied to the hidden embedding (smallest hidden layer).
+
+        Returns
+        -------
+                ``None``
+        """
         hsize = AutoEncoder._get_hidden_size(hidden_layers)
         inputs = Input(shape=(self.in_size,))
         x = Dropout(dropout_rate)(inputs)
@@ -63,12 +126,6 @@ class AutoEncoder(BaseNetwork):
                 f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
             )
         return min_size
-
-    def get_hidden_embedding(self, lincs_dset=None):
-        if lincs_dset:
-            return HiddenEmbedding(lincs_dset, self.encoder)
-        else:
-            return HiddenEmbedding(self.test, self.encoder)
 
     @property
     def encoder(self):

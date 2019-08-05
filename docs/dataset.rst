@@ -1,11 +1,12 @@
-API Guide
-==============
+.. _dataset:
 
-DeepLincs offers the :class:`Dataset` to wrangle L1000 data.
+Dataset
+=======
+
+DeepLincs offers :class:`Dataset` to wrangle L1000 data.
 
 Dataset
 -------
-
 .. currentmodule:: deep_lincs.dataset
 
 .. autoclass:: Dataset
