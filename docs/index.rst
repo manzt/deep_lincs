@@ -51,16 +51,10 @@ Navigate to the `example notebooks <https://github.com/manzt/deep_lincs/tree/mas
 
 High-level API reference
 ------------------------
-
 .. toctree::
     :maxdepth: 1
 
     dataset
-
-.. toctree::
-    :maxdepth: 2
-
     models
-
 
 
