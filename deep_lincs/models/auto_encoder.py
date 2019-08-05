@@ -12,6 +12,39 @@ from .metrics import PearsonsR
 
 
 class AutoEncoder(BaseNetwork):
+    """Represents an simple autoencoder
+    
+    Parameters
+    ----------
+    dataset : ``Dataset``
+            An instance of a ``Dataset`` intended to train and evaluate a model.
+            
+    test_sizes : tuple, (optional, default ( ``0.2`` , ``0.2`` ))
+            Size of test splits for dividing the dataset into training, validation, and, testing
+
+    Attributes
+    ----------
+    targets : ``list(str)``
+            Targets for model.
+            
+    train : ``Dataset``
+            Dataset used to train the model.
+    
+    val : ``Dataset``
+            Dataset used during training as validation.
+    
+    test : ``Dataset``
+            Dataset used to evaluate the model.
+            
+    model : ``tensorflow.keras.Model``
+            Compiled and trained model.
+    
+    in_size : ``int`` 
+            Size of inputs (generally 978 for L1000 landmark genes).
+    
+    out_size : ``int``
+            Same as input size since model is an autoencoder.
+    """
     def __init__(self, dataset, **kwargs):
         super(AutoEncoder, self).__init__(dataset=dataset, target="self", **kwargs)
         self.in_size = dataset.data.shape[1]

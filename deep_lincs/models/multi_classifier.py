@@ -9,6 +9,42 @@ from .base_network import BaseNetwork
 
 
 class MultiClassifier(BaseNetwork):
+    """Represents a classifier for multiple metadata fields
+    
+    Parameters
+    ----------
+    dataset : ``Dataset``
+            An instance of a ``Dataset`` intended to train and evaluate a model.
+            
+    targets : ``list(str)``
+            Valid lists of metadata fields which define multiple classification tasks.
+            
+    test_sizes : tuple, (optional, default ( ``0.2`` , ``0.2`` ))
+            Size of test splits for dividing the dataset into training, validation, and, testing
+
+    Attributes
+    ----------
+    targets : ``list(str)``
+            Targets for model.
+            
+    train : ``Dataset``
+            Dataset used to train the model.
+    
+    val : ``Dataset``
+            Dataset used during training as validation.
+    
+    test : ``Dataset``
+            Dataset used to evaluate the model.
+            
+    model : ``tensorflow.keras.Model``
+            Compiled and trained model.
+            
+    in_size : ``int`` 
+            Size of inputs (generally 978 for L1000 landmark genes).
+    
+    out_size : ``int``
+            Sum total of classification categories.
+    """
     def __init__(self, dataset, targets, **kwargs):
         for target in targets:
             dataset._data[target] = pd.Categorical(dataset._data[target])
@@ -23,6 +59,32 @@ class MultiClassifier(BaseNetwork):
         optimizer="adam",
         final_activation="softmax",
     ):
+        """Defines how model is built and compiled
+
+        Parameters
+        ----------
+        hidden_layers : ``list(int)``
+                A list describing the size of the hidden layers.
+
+        dropout_rate : ``float`` (optional: default ``0.0``)
+                Dropout rate used during training. Applied to all hidden layers.
+
+        activation : ``str``, (optional: default ``"relu"``)
+                Activation function used in hidden layers.
+
+        optimizer : ``str``, (optional: default ``"adam"``)
+                Optimizer used during training.
+                
+        final_activation : ``str`` (optional: default ``"softmax"``)
+                Activation function used in final layer.
+                
+        loss : ``str`` (optional: default ``"categorical_crossentropy"``)
+                Loss function.
+
+        Returns
+        -------
+                ``None``
+        """
         inputs = Input(shape=(self.in_size,))
 
         x = Dropout(dropout_rate)(inputs)
@@ -38,7 +100,7 @@ class MultiClassifier(BaseNetwork):
         model = Model(inputs, outputs)
 
         model.compile(
-            optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"]
+            optimizer=optimizer, loss=loss, metrics=["accuracy"]
         )
 
         self.model = model
@@ -61,6 +123,27 @@ class MultiClassifier(BaseNetwork):
     def plot_confusion_matrix(
         self, normalize=True, zero_diag=False, size=300, color_scheme="lightgreyteal"
     ):
+        """Evaluates model and plots a confusion matrix of classification results
+
+        Parameters
+        ----------
+        normalize : ``bool``, (optional: default ``True``)
+                Whether to normalize counts to frequencies.
+
+        zero_diag : ``bool`` (optional: default ``False``)
+                Whether to zero the diagonal of matrix. Useful for examining which categories 
+                are most frequently misidenitfied.
+
+        size : ``int``, (optional: default ``300``)
+                Size of the plot in pixels.
+
+        color_scheme : ``str``, (optional: default ``"lightgreyteal"``)
+                Color scheme in heatmap. Can be any from https://vega.github.io/vega/docs/schemes/.
+
+        Returns
+        -------
+                ``altair.Chart`` object
+        """
         y_dummies = [pd.get_dummies(self.test.sample_meta[t]) for t in self.target]
         y_pred = self.predict()
 
