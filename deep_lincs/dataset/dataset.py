@@ -361,7 +361,7 @@ class Dataset:
         else:
             gene_mask = self.gene_meta.index.astype(str) == str(identifier)
             
-        gene_index = self.gene_meta[gene_mask].index[0]
+        gene_index = self.gene_meta[gene_mask].index[0].astype(str)
         df = self._data[[gene_index, *self.sample_meta.columns]]
         df = df.rename(columns={gene_index: identifier})
         return boxplot(df=df, x=meta_field, y=df.columns[0], extent=extent)
