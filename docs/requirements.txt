@@ -1,3 +1,7 @@
 numpydoc
-tensorflow
+numpy 
+pandas
+dask
+six
 scikit-learn
+tensorflow
