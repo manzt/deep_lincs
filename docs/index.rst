@@ -55,6 +55,11 @@ High-level API reference
     :maxdepth: 1
 
     dataset
+    
+    
+.. toctree::
+    :maxdepth: 2
+
     models
 
 
