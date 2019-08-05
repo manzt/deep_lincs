@@ -44,12 +44,14 @@ model for an identical task. For example, here is a
 
 The subsequent code to train this model with a :class:`Dataset` is included below. 
 All :class:`deep_lincs.models` follow the same order of method calls.
+
 .. code-block:: python
 
     snc = SelfNormalizingClassifier(dataset, target="subtype")
     snn.prepare_tf_datasets(batch_size=128)
     snn.compile_model([128, 128, 128], dropout_rate=0.15)
     snn.fit(epochs=20)
+    
 
 AutoEncoder
 -----------
