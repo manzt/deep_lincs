@@ -1,3 +1,5 @@
+.. _dataset:
+
 Dataset
 =======
 
@@ -5,7 +7,6 @@ DeepLincs offers :class:`Dataset` to wrangle L1000 data.
 
 Dataset
 -------
-
 .. currentmodule:: deep_lincs.dataset
 
 .. autoclass:: Dataset
