@@ -13,18 +13,21 @@ and training deep learning models.
 The class :class:`Dataset`, built on `pandas dataframes <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_, 
 offers methods to load, sample, filter, subset, and explore these data in memory. 
 
-DeepLINCS also provides a wrapper around around `TensorFlow <https://www.tensorflow.org/beta>`_ to efficiently load a :class:`Dataset` and train a variety of deep learning models.
+DeepLINCS also provides a wrapper around around `TensorFlow <https://www.tensorflow.org/beta>`_ 
+to efficiently load a :class:`Dataset` and train a variety of deep learning models on the GPU.
 
 You can find the software `on github <https://github.com/manzt/deep_lincs>`_.
 
-**Installation**
+Installation
+------------
 
 .. code:: bash
 
      pip install deep-lincs
 
 
-**Downloading the data**
+Downloading the data
+--------------------
 
 The data for 1.3 million L1000 profiles are availabe `on GEO <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE92742>`_.
 The script ``load_files.sh`` fetches the ``Level 3`` data along with all metadata available. The largest file is quite big (~50Gb) so please be patient.
@@ -34,7 +37,9 @@ The script ``load_files.sh`` fetches the ``Level 3`` data along with all metadat
     git clone https://github.com/manzt/deep_lincs.git && cd deep_lincs
     source load_files.sh # download raw data from GEO
 
-**Getting started**
+
+Getting started
+---------------
 
 Navigate to the `example notebooks <https://github.com/manzt/deep_lincs/tree/master/notebooks>`_ and try building a model!
 
@@ -44,11 +49,18 @@ Navigate to the `example notebooks <https://github.com/manzt/deep_lincs/tree/mas
     jupyter lab # easiest for plotting with altair
     
 
-.. toctree::
-   :caption: API Reference:
-
-   api
+High-level API reference
+------------------------
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 1
+
+    dataset
+
+.. toctree::
+    :maxdepth: 2
+
+    models
+
+
+

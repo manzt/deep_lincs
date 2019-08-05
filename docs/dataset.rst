@@ -1,7 +1,7 @@
-API Guide
-==============
+Dataset
+=======
 
-DeepLincs offers the :class:`Dataset` to wrangle L1000 data.
+DeepLincs offers :class:`Dataset` to wrangle L1000 data.
 
 Dataset
 -------

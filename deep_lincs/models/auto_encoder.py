@@ -24,6 +24,10 @@ class AutoEncoder(BaseNetwork):
 
     Attributes
     ----------
+    
+    encoder : ``tensorflow.keras.Model``
+            Encoder for the AutoEncoder model. 
+            
     targets : ``list(str)``
             Targets for model.
             
@@ -60,6 +64,32 @@ class AutoEncoder(BaseNetwork):
         optimizer="adam",
         l1_reg=None,
     ):
+        """Defines how model is built and compiled
+
+        Parameters
+        ----------
+        hidden_layers : ``list(int)``
+                A list describing the size of the hidden layers.
+
+        dropout_rate : ``float`` (optional: default ``0.0``)
+                Dropout rate used during training. Applied to all hidden layers.
+
+        activation : ``str``, (optional: default ``"relu"``)
+                Activation function used in hidden layers.
+                
+        final_activation : ``str`` (optional: default ``"softmax"``)
+                Activation function used in final layer.
+                
+        optimizer : ``str``, (optional: default ``"adam"``)
+                Optimizer used during training.
+                
+        l1_reg : ``float`` (optional: default ``None``)
+                Level of L1 regularization applied to the hidden embedding (smallest hidden layer).
+
+        Returns
+        -------
+                ``None``
+        """
         hsize = AutoEncoder._get_hidden_size(hidden_layers)
         inputs = Input(shape=(self.in_size,))
         x = Dropout(dropout_rate)(inputs)
@@ -96,12 +126,6 @@ class AutoEncoder(BaseNetwork):
                 f"Make sure there is a single minimum in hidden layers: {hidden_layers}."
             )
         return min_size
-
-    def get_hidden_embedding(self, lincs_dset=None):
-        if lincs_dset:
-            return HiddenEmbedding(lincs_dset, self.encoder)
-        else:
-            return HiddenEmbedding(self.test, self.encoder)
 
     @property
     def encoder(self):
