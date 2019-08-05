@@ -1,6 +1,7 @@
+.. _models:
+
 Extendable Models
 =================
-
 
 DeepLincs offers :class:`AutoEncoder`, :class:`MultiClassifier`, 
 :class:`SingleClassifier`, as simple high-level APIs for building 
@@ -56,7 +57,6 @@ All :class:`deep_lincs.models` follow the same order of method calls.
 
 AutoEncoder
 -----------
-
 .. currentmodule:: deep_lincs.models
 
 .. autoclass:: AutoEncoder
@@ -77,7 +77,6 @@ AutoEncoder
 
 MultiClassifier
 ---------------
-
 .. currentmodule:: deep_lincs.models
 
 .. autoclass:: MultiClassifier
@@ -101,7 +100,6 @@ MultiClassifier
 
 SingleClassifier
 ----------------
-
 .. currentmodule:: deep_lincs.models
 
 .. autoclass:: SingleClassifier
@@ -121,4 +119,3 @@ SingleClassifier
       ~BaseNetwork.save
       ~BaseNetwork.summary
       ~SingleClassifier.plot_confusion_matrix
-
