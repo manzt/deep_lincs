@@ -23,7 +23,8 @@ model for an identical task. For example, here is a
         # overrides SingleClassifier method
         def compile_model(hidden_layers, dropout_rate, opt="adam"):
             inputs = Input(shape=(self.in_size,))
-            x = Dense(hidden_layers.pop(0), kernel_initializer="lecun_normal")(inputs)
+            dense1 = hidden_layers.pop(0)
+            x = Dense(dense1, kernel_initializer="lecun_normal")(inputs)
             x = Acitvation("selu")(x)
             x = AlphaDropout(dropout_rate)(x)
 
