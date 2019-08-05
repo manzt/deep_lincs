@@ -38,7 +38,7 @@ extensions = [
         'numpydoc.numpydoc',
 ]
 
-autodoc_default_flags = ['members', 'inherited-members']
+autodoc_default_options = {'members': True, 'inherited-members': True}
 
 autodoc_member_order = 'groupwise'
 
