@@ -16,9 +16,9 @@ model for an identical task. For example, here is a
 .. code-block:: python
 
    from deep_lincs.models import SingleClassifier
-   from keras.models import Model
+   from tensorflow.keras.models import Model
    from tensorflow.keras.layers import Dense, Activation
-   from keras.layers.noise import AlphaDropout
+   from tensorflow.keras.layers.noise import AlphaDropout
 
    class SelfNormalizingClassifier(SingleClassifier):
         # overrides SingleClassifier method
