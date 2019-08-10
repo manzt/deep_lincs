@@ -15,18 +15,18 @@ model for an identical task. For example, here is a
 
 .. code-block:: python
 
-   from deep_lincs.models import SingleClassifier
-   from tensorflow.keras.models import Model
-   from tensorflow.keras.layers import Dense, Activation
-   from tensorflow.keras.layers.noise import AlphaDropout
+    from deep_lincs.models import SingleClassifier
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Dense, Activation, AlphaDropout, Input
 
-   class SelfNormalizingClassifier(SingleClassifier):
-        # overrides SingleClassifier method
-        def compile_model(hidden_layers, dropout_rate, opt="adam"):
+    class SelfNormalisingClassifier(SingleClassifier):
+        def __init__(self, dataset, target):
+            super(SelfNormalisingClassifier, self).__init__(dataset=dataset, target=target)
+            
+        def compile_model(self, hidden_layers, dropout_rate, opt="adam"):
             inputs = Input(shape=(self.in_size,))
-            dense1 = hidden_layers.pop(0)
-            x = Dense(dense1, kernel_initializer="lecun_normal")(inputs)
-            x = Acitvation("selu")(x)
+            x = Dense( hidden_layers.pop(0), kernel_initializer="lecun_normal")(inputs)
+            x = Activation("selu")(x)
             x = AlphaDropout(dropout_rate)(x)
 
             for h in hidden_layers:
@@ -37,8 +37,8 @@ model for an identical task. For example, here is a
             outputs = Dense(self.out_size, activation="softmax")(x)
             model = Model(inputs, outputs)
             model.compile(
-                loss='categorical_crossentropy', 
-                optimizer=opt, 
+                loss='categorical_crossentropy',
+                optimizer=opt,
                 metrics=['accuracy']
             )
             # set model attribute
@@ -49,7 +49,7 @@ All :class:`deep_lincs.models` follow the same order of method calls.
 
 .. code-block:: python
 
-    snc = SelfNormalizingClassifier(dataset, target="subtype")
+    snn = SelfNormalizingClassifier(dataset, target="subtype")
     snn.prepare_tf_datasets(batch_size=128)
     snn.compile_model([128, 128, 128], dropout_rate=0.15)
     snn.fit(epochs=20)
