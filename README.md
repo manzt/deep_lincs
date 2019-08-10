@@ -1,4 +1,4 @@
-# deepLINCS
+# DeepLINCS
 
 A deep learning toolkit for [LINCS](http://www.lincsproject.org/) L1000 expression data.
 
