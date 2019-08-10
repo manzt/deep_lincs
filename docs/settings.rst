@@ -74,27 +74,26 @@ An example can be seen below.
             na_values: "-666"
             sep: "\t"
         lookup: 
-            name: cell_info
-            file: cell_info.txt
-            lookup_key: cell_id
-            usecols: 
-                - cell_id 
-                - cell_type 
-                - precursor_cell_id
-                - sample_type 
-                - primary_site 
-                - subtype
-            na_values: "-666"
-            sep: "\t"
-        lookup:
-            name: pert_info
-            file: pert_info.txt
-            lookup_key: pert_id
-            usecols:
-                - pert_id
-                - pert_type
-                - inchi_key_prefix 
-                - inchi_key
-                - canonical_smile
-            na_values: "-666"
-            sep: "\t"
+            - name: cell_info
+              file: cell_info.txt
+              lookup_key: cell_id
+              usecols: 
+                  - cell_id 
+                  - cell_type 
+                  - precursor_cell_id
+                  - sample_type 
+                  - primary_site 
+                  - subtype
+              na_values: "-666"
+              sep: "\t"
+            - name: pert_info
+              file: pert_info.txt
+              lookup_key: pert_id
+              usecols:
+                  - pert_id
+                  - pert_type
+                  - inchi_key_prefix 
+                  - inchi_key
+                  - canonical_smile
+              na_values: "-666"
+              sep: "\t"
