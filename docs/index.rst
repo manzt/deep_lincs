@@ -55,7 +55,11 @@ High-level API reference
     :maxdepth: 1
 
     dataset
-    
+
+.. toctree::
+    :maxdepth: 1
+
+    settings
     
 .. toctree::
     :maxdepth: 2
