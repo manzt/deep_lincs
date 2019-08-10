@@ -2,7 +2,7 @@
 
 A deep learning toolkit for [LINCS](http://www.lincsproject.org/) L1000 expression data.
 
-Check out the documentation [here](https://deep-lincs.readthedocs.io/en/latest/).
+Check out the documentation [here](https://deep-lincs.readthedocs.io).
 
 ## Installation
 ```bash
