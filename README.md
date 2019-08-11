@@ -49,7 +49,7 @@ from deep_lincs.models import SingleClassifier
 
 model = SingleClassifier(dataset, target="cell_id")
 model.prepare_tf_datasets(batch_size=64)
-model.compile_model([128, 128, 64, 32], dropout_rate=0.1)
+model.compile_model(hidden_layers=[128, 128, 64, 32], dropout_rate=0.1)
 model.fit(epochs=10)
 
 model.evaluate() # Evaluates on isntance test Dataset
